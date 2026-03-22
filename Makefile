@@ -7,11 +7,6 @@ else
 PYTHON ?= python3
 endif
 
-ifneq ($(filter zeek-logs,$(MAKECMDGOALS)),)
-ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-PCAP ?= $(firstword $(ARGS))
-endif
-
 .PHONY: venv
 venv:
 	@/usr/bin/python3.11 -m venv "$(ROOT_DIR)/.venv"
@@ -28,19 +23,19 @@ bootstrap: venv install
 run:
 	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" Run.py
 
-.PHONY: zeek-logs
-zeek-logs:
-	@[ -n "$(PCAP)" ] || { echo "PCAP path required (usage: make zeek-logs /path/to/file.pcap or make zeek-logs PCAP=/path/to/file.pcap)"; exit 1; }
-	@PCAP_REAL="$$(realpath "$(PCAP)")"; \
-	OUT_DIR="$(ROOT_DIR)/data/logs/$$(basename "$$PCAP_REAL" .pcap)"; \
-	mkdir -p "$$OUT_DIR"; \
-	OUT_DIR="$$(realpath "$$OUT_DIR")"; \
-	cd "$$OUT_DIR" && zeek -r "$$PCAP_REAL" LogAscii::use_json=T
+.PHONY: docs-check
+docs-check:
+	@"$(PYTHON)" -m unittest discover -s "$(ROOT_DIR)/tests" -p 'test_docs_consistency.py' -v -b
+
+.PHONY: test
+test:
+	@"$(PYTHON)" -m compileall -q "$(ROOT_DIR)/src" "$(ROOT_DIR)/tests"
+	@"$(PYTHON)" -m unittest discover -s "$(ROOT_DIR)/tests" -p 'test_*.py' -v -b
+
+.PHONY: pcap-to-log
+pcap-to-log:
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/PcapToLogExtractor.py"
 
 .PHONY: log-to-csv
 log-to-csv:
-	@[ -n "$(LOG_DIR)" ] || { echo "LOG_DIR required (usage: make log-to-csv LOG_DIR=/path/to/logs)"; exit 1; }
-	@[ -n "$(OUT_CSV)" ] || { echo "OUT_CSV required (usage: make log-to-csv LOG_DIR=/path/to/logs OUT_CSV=/path/to/out.csv)"; exit 1; }
-	@"$(PYTHON)" "$(ROOT_DIR)/src/util/LogToCsvExtractor.py" "$(LOG_DIR)" "$(OUT_CSV)" \
-		--pattern "$(PATTERN)" \
-		$(if $(NETWORK_KEY),--network-key "$(NETWORK_KEY)",)
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/LogToCsvExtractor.py"

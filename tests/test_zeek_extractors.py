@@ -25,6 +25,10 @@ class ZeekExtractorTests(unittest.TestCase):
         self.base = Path(self.tmpdir.name)
         self.pcap_to_log = load_module("pcap_to_log_test", ZEEK_DIR / "PcapToLogExtractor.py")
         self.log_to_csv = load_module("log_to_csv_test", ZEEK_DIR / "LogToCsvExtractor.py")
+        self.normalize_pcap_ext = load_module(
+            "normalize_pcap_ext_test",
+            ZEEK_DIR / "NormalizePcapExtensions.py",
+        )
 
     def tearDown(self):
         self.tmpdir.cleanup()
@@ -160,6 +164,56 @@ class ZeekExtractorTests(unittest.TestCase):
         batch_dir = output_root / input_dir.name
         self.assertTrue(batch_dir.is_dir())
         self.assertEqual(list(batch_dir.iterdir()), [])
+
+    def test_normalize_pcap_extensions_renames_extensionless_files_recursively(self):
+        input_dir = self.base / "captures"
+        nested_dir = input_dir / "nested"
+        nested_dir.mkdir(parents=True)
+        (input_dir / "alpha").write_text("", encoding="utf-8")
+        (nested_dir / "beta").write_text("", encoding="utf-8")
+        (nested_dir / "already.pcap").write_text("", encoding="utf-8")
+
+        with mock.patch.object(
+            self.normalize_pcap_ext,
+            "parse_args",
+            return_value=types.SimpleNamespace(root_dir=str(input_dir), dry_run=False),
+        ):
+            self.normalize_pcap_ext.main()
+
+        self.assertFalse((input_dir / "alpha").exists())
+        self.assertFalse((nested_dir / "beta").exists())
+        self.assertTrue((input_dir / "alpha.pcap").is_file())
+        self.assertTrue((nested_dir / "beta.pcap").is_file())
+        self.assertTrue((nested_dir / "already.pcap").is_file())
+
+    def test_normalize_pcap_extensions_dry_run_keeps_files_unchanged(self):
+        input_dir = self.base / "captures"
+        input_dir.mkdir(parents=True)
+        (input_dir / "alpha").write_text("", encoding="utf-8")
+
+        with mock.patch.object(
+            self.normalize_pcap_ext,
+            "parse_args",
+            return_value=types.SimpleNamespace(root_dir=str(input_dir), dry_run=True),
+        ):
+            self.normalize_pcap_ext.main()
+
+        self.assertTrue((input_dir / "alpha").is_file())
+        self.assertFalse((input_dir / "alpha.pcap").exists())
+
+    def test_normalize_pcap_extensions_rejects_existing_target(self):
+        input_dir = self.base / "captures"
+        input_dir.mkdir(parents=True)
+        (input_dir / "alpha").write_text("", encoding="utf-8")
+        (input_dir / "alpha.pcap").write_text("", encoding="utf-8")
+
+        with mock.patch.object(
+            self.normalize_pcap_ext,
+            "parse_args",
+            return_value=types.SimpleNamespace(root_dir=str(input_dir), dry_run=False),
+        ):
+            with self.assertRaisesRegex(SystemExit, "Target already exists"):
+                self.normalize_pcap_ext.main()
 
     def test_log_to_csv_creates_per_log_directories_and_excludes_exception(self):
         batch_root = self.base / "log_batches" / "sample_batch"

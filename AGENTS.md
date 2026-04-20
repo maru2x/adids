@@ -89,6 +89,7 @@ A change is not done until all of the following are true:
 
 - `src/util/FeatureExtract/Zeek/PcapToLogExtractor.py`
 - `src/util/FeatureExtract/Zeek/LogToCsvExtractor.py`
+- `src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py`
 - `src/util/FeatureExtract/Zeek/settings.json`
 - `src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py`
 - `src/util/FeatureExtract/Legacy/settings.json`
@@ -177,6 +178,7 @@ Current coverage:
 - baseline consistency between `README.md`, `AGENTS.md`, and the required files in `src/docs/`
 - mocked `pcap-to-log` batch/timestamp layout
 - `pcap-to-log` cleanup when Zeek execution fails
+- recursive rename helper for extensionless PCAP files
 - `log-to-csv` per-target output dirs
 - `EXCEPTION` exclusion in `log-to-csv`
 - clear failure on invalid JSON Zeek logs

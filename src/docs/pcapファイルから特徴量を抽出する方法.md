@@ -36,6 +36,20 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py` を
 
 - `pcap-to-log`: `src/util/FeatureExtract/Zeek/PcapToLogExtractor.py`
 - `log-to-csv`: `src/util/FeatureExtract/Zeek/LogToCsvExtractor.py`
+- 拡張子なし PCAP の補助リネーム: `src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py`
+
+`pcap-to-log` は拡張子が `.pcap` のファイルを再帰収集する。
+そのため、拡張子なしの PCAP が混ざっている場合は、事前に補助スクリプトで `.pcap` を付けてから `make pcap-to-log` を実行する。
+
+```bash
+python3 src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py data/pcap/test_region
+```
+
+実際に変更せず確認だけしたい場合は `--dry-run` を付ける。
+
+```bash
+python3 src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py data/pcap/test_region --dry-run
+```
 
 #### pcap-to-logの使い方
 

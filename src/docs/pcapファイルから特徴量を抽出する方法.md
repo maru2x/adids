@@ -57,7 +57,7 @@ python3 src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py data/pcap/test_r
 - `PcapToLog.INPUT_DIR_PATH`: logファイルに変換したいpcapファイルを含めたディレクトリを指定する。プロジェクトルートからの相対パスもしくは絶対パスで指定。
 - `PcapToLog.OUTPUT_ROOT_DIR_PATH`: 変換後のlogファイルの出力ルートを指定する。実際の出力先は `OUTPUT_ROOT_DIR_PATH/<input_dir_name>/` となる。
 
-このコマンドでは、入力されたディレクトリ配下の `.pcap` ファイルを再帰的に収集して処理する。
+このコマンドでは、入力されたディレクトリ配下の `.pcap` / `.pcapng` ファイルを再帰的に収集して処理する。
 設定した `PcapToLog.OUTPUT_ROOT_DIR_PATH` の下に、入力ディレクトリ名と同じ名前のディレクトリを作成し、各pcapファイルごとに `zeek -r <pcap> LogAscii::use_json=T` を実行する。
 生成された `.log` の最初の `ts` を使って、各ログディレクトリ名を `YYYYMMDDHHMMSS` にする。
 

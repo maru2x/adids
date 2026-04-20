@@ -1,5 +1,6 @@
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 VENV_PYTHON := $(ROOT_DIR)/.venv/bin/python
+BOOTSTRAP_PYTHON := $(shell if command -v python3.11 >/dev/null 2>&1; then command -v python3.11; else command -v python3; fi)
 
 ifneq ($(wildcard $(VENV_PYTHON)),)
 PYTHON ?= $(VENV_PYTHON)
@@ -9,7 +10,13 @@ endif
 
 .PHONY: venv
 venv:
-	@/usr/bin/python3.11 -m venv "$(ROOT_DIR)/.venv"
+	@BOOTSTRAP_VERSION="$$("$(BOOTSTRAP_PYTHON)" -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')"; \
+	if [ "$$BOOTSTRAP_VERSION" != "3.11" ]; then \
+		echo "make bootstrap requires Python 3.11; found $$BOOTSTRAP_VERSION at $(BOOTSTRAP_PYTHON)" >&2; \
+		exit 1; \
+	fi
+	@if [ -d "$(ROOT_DIR)/.venv/bin" ]; then chmod u+w "$(ROOT_DIR)"/.venv/bin/activate* "$(ROOT_DIR)"/.venv/bin/Activate* 2>/dev/null || true; fi
+	@"$(BOOTSTRAP_PYTHON)" -m venv "$(ROOT_DIR)/.venv"
 
 .PHONY: install
 install:

@@ -20,6 +20,25 @@ make bootstrap
 - `.venv` の作成
 - `requirements.txt` による依存パッケージのインストール
 
+補足:
+- `make bootstrap` は `python3.11` を要求する
+- `python3` が別バージョンでも、依存関係の都合で 3.11 以外では失敗する可能性が高い
+- `python3.11` が無い環境では、まず 3.11 を導入してから実行する
+
+Debian / Ubuntu 系で OS パッケージから導入する例:
+
+```bash
+sudo apt update
+sudo apt install python3.11 python3.11-venv
+python3.11 --version
+```
+
+その後にセットアップを実行する。
+
+```bash
+make bootstrap
+```
+
 ## 実行
 本プロジェクトの実行モードは `Simulation` と `Live` の大きく2つ存在する。
 - `Simulation`: すでに収集したトラヒック（pcapファイル）から事前に特徴量を抽出し、擬似的にリアルタイムな「侵入検知」「概念ドリフト検出」「モデルの再学習」を行う

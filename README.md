@@ -25,18 +25,43 @@ make bootstrap
 - `python3` が別バージョンでも、依存関係の都合で 3.11 以外では失敗する可能性が高い
 - `python3.11` が無い環境では、まず 3.11 を導入してから実行する
 
-Debian / Ubuntu 系で OS パッケージから導入する例:
+`zsh` を使っていて、OS パッケージで `python3.11` が入らない環境では `pyenv` の利用を勧める。
 
 ```bash
 sudo apt update
-sudo apt install python3.11 python3.11-venv
-python3.11 --version
+sudo apt install -y build-essential curl git libssl-dev zlib1g-dev \
+  libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev
+curl https://pyenv.run | bash
+```
+
+`~/.zshrc` に次を追加する。
+
+```bash
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+```
+
+新しい shell を開いてから:
+
+```bash
+pyenv install 3.11.11
+pyenv local 3.11.11
+python --version
 ```
 
 その後にセットアップを実行する。
 
 ```bash
 make bootstrap
+```
+
+Debian / Ubuntu 系で OS パッケージから導入できる環境なら、代わりに次でもよい。
+
+```bash
+sudo apt update
+sudo apt install python3.11 python3.11-venv
+python3.11 --version
 ```
 
 ## 実行

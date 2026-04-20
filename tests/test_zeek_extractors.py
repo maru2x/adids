@@ -84,7 +84,7 @@ class ZeekExtractorTests(unittest.TestCase):
         nested_dir = input_dir / "nested"
         nested_dir.mkdir(parents=True)
         (input_dir / "alpha.pcap").write_text("", encoding="utf-8")
-        (nested_dir / "beta.pcap").write_text("", encoding="utf-8")
+        (nested_dir / "beta.pcapng").write_text("", encoding="utf-8")
 
         output_root = self.base / "logs"
         settings_path = self.base / "pcap_settings.json"
@@ -169,9 +169,10 @@ class ZeekExtractorTests(unittest.TestCase):
         input_dir = self.base / "captures"
         nested_dir = input_dir / "nested"
         nested_dir.mkdir(parents=True)
-        (input_dir / "alpha").write_text("", encoding="utf-8")
-        (nested_dir / "beta").write_text("", encoding="utf-8")
+        (input_dir / "alpha").write_bytes(b"\xd4\xc3\xb2\xa1rest")
+        (nested_dir / "beta").write_bytes(b"\x0a\x0d\x0d\x0arest")
         (nested_dir / "already.pcap").write_text("", encoding="utf-8")
+        (nested_dir / "ignored").write_text("not a capture", encoding="utf-8")
 
         with mock.patch.object(
             self.normalize_pcap_ext,
@@ -182,14 +183,15 @@ class ZeekExtractorTests(unittest.TestCase):
 
         self.assertFalse((input_dir / "alpha").exists())
         self.assertFalse((nested_dir / "beta").exists())
+        self.assertTrue((nested_dir / "ignored").is_file())
         self.assertTrue((input_dir / "alpha.pcap").is_file())
-        self.assertTrue((nested_dir / "beta.pcap").is_file())
+        self.assertTrue((nested_dir / "beta.pcapng").is_file())
         self.assertTrue((nested_dir / "already.pcap").is_file())
 
     def test_normalize_pcap_extensions_dry_run_keeps_files_unchanged(self):
         input_dir = self.base / "captures"
         input_dir.mkdir(parents=True)
-        (input_dir / "alpha").write_text("", encoding="utf-8")
+        (input_dir / "alpha").write_bytes(b"\xd4\xc3\xb2\xa1rest")
 
         with mock.patch.object(
             self.normalize_pcap_ext,
@@ -204,7 +206,7 @@ class ZeekExtractorTests(unittest.TestCase):
     def test_normalize_pcap_extensions_rejects_existing_target(self):
         input_dir = self.base / "captures"
         input_dir.mkdir(parents=True)
-        (input_dir / "alpha").write_text("", encoding="utf-8")
+        (input_dir / "alpha").write_bytes(b"\xd4\xc3\xb2\xa1rest")
         (input_dir / "alpha.pcap").write_text("", encoding="utf-8")
 
         with mock.patch.object(

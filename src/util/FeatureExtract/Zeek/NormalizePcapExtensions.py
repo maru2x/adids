@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recursively append .pcap to extensionless files under a directory."""
+"""Recursively append capture-file extensions to extensionless files."""
 
 from __future__ import annotations
 
@@ -7,11 +7,20 @@ import argparse
 from pathlib import Path
 
 
+PCAP_MAGIC_HEADERS = {
+    b"\xd4\xc3\xb2\xa1": ".pcap",
+    b"\xa1\xb2\xc3\xd4": ".pcap",
+    b"\x4d\x3c\xb2\xa1": ".pcap",
+    b"\xa1\xb2\x3c\x4d": ".pcap",
+    b"\x0a\x0d\x0d\x0a": ".pcapng",
+}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Recursively rename extensionless files under the given directory "
-            "by appending .pcap."
+            "Recursively rename extensionless capture files under the given "
+            "directory by appending .pcap or .pcapng."
         )
     )
     parser.add_argument(
@@ -43,12 +52,21 @@ def collect_extensionless_files(root_dir: Path) -> list[Path]:
     )
 
 
+def detect_capture_extension(path: Path) -> str | None:
+    with path.open("rb") as fh:
+        header = fh.read(4)
+    return PCAP_MAGIC_HEADERS.get(header)
+
+
 def build_rename_pairs(files: list[Path]) -> list[tuple[Path, Path]]:
     pairs: list[tuple[Path, Path]] = []
     seen_targets: set[Path] = set()
 
     for source in files:
-        target = source.with_name(f"{source.name}.pcap")
+        extension = detect_capture_extension(source)
+        if extension is None:
+            continue
+        target = source.with_name(f"{source.name}{extension}")
         if target.exists():
             raise SystemExit(f"Target already exists: {target}")
         if target in seen_targets:
@@ -74,7 +92,7 @@ def main() -> None:
     pairs = build_rename_pairs(files)
 
     if not pairs:
-        print(f"No extensionless files found under {root_dir}")
+        print(f"No extensionless .pcap/.pcapng files found under {root_dir}")
         return
 
     count = rename_files(pairs, dry_run=args.dry_run)

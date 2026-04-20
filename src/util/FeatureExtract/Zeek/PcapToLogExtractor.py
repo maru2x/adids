@@ -58,14 +58,16 @@ def resolve_config(settings: dict) -> tuple[Path, Path]:
 
 def collect_pcap_files(input_path: Path) -> list[Path]:
     if input_path.is_file():
-        raise SystemExit(f"Expected a directory containing .pcap files: {input_path}")
+        raise SystemExit(f"Expected a directory containing .pcap/.pcapng files: {input_path}")
     if input_path.is_dir():
         files = sorted(
-            p for p in input_path.rglob("*") if p.is_file() and p.suffix.lower() == ".pcap"
+            p
+            for p in input_path.rglob("*")
+            if p.is_file() and p.suffix.lower() in {".pcap", ".pcapng"}
         )
         if files:
             return files
-        raise SystemExit(f"No .pcap files were found under {input_path}")
+        raise SystemExit(f"No .pcap/.pcapng files were found under {input_path}")
     raise SystemExit(f"Input path not found: {input_path}")
 
 

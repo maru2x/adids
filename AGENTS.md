@@ -179,6 +179,7 @@ Current coverage:
 - mocked `pcap-to-log` batch/timestamp layout
 - `pcap-to-log` cleanup when Zeek execution fails
 - recursive rename helper for extensionless PCAP files
+- recursive rename helper for extensionless PCAPNG files
 - `log-to-csv` per-target output dirs
 - `EXCEPTION` exclusion in `log-to-csv`
 - clear failure on invalid JSON Zeek logs

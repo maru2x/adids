@@ -85,7 +85,7 @@ make pcap-to-log
 make log-to-csv
 ```
 
-拡張子なしの PCAP が混ざっている場合は、事前に補助スクリプトで `.pcap` を付けられる。
+拡張子なしの PCAP / PCAPNG が混ざっている場合は、事前に補助スクリプトで `.pcap` / `.pcapng` を付けられる。
 
 ```bash
 python3 src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py data/pcap/test_region

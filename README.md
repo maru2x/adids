@@ -22,6 +22,7 @@ make bootstrap
 
 補足:
 - `make bootstrap` は `python3.11` を要求する
+- `.python-version` と `pyenv` がある場合、`make bootstrap` はその Python を優先して使う
 - `python3` が別バージョンでも、依存関係の都合で 3.11 以外では失敗する可能性が高い
 - `python3.11` が無い環境では、まず 3.11 を導入してから実行する
 - このリポジトリでは `.python-version` に `3.11.11` を置いている

@@ -1,6 +1,7 @@
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 VENV_PYTHON := $(ROOT_DIR)/.venv/bin/python
-BOOTSTRAP_PYTHON := $(shell if command -v python3.11 >/dev/null 2>&1; then command -v python3.11; elif command -v python >/dev/null 2>&1; then command -v python; else command -v python3; fi)
+PYENV_BIN := $(HOME)/.pyenv/bin/pyenv
+BOOTSTRAP_PYTHON := $(shell if [ -x "$(PYENV_BIN)" ] && [ -f "$(ROOT_DIR)/.python-version" ]; then "$(PYENV_BIN)" which python 2>/dev/null; elif command -v python3.11 >/dev/null 2>&1; then command -v python3.11; elif command -v python >/dev/null 2>&1; then command -v python; else command -v python3; fi)
 
 ifneq ($(wildcard $(VENV_PYTHON)),)
 PYTHON ?= $(VENV_PYTHON)

@@ -10,7 +10,7 @@ IoT機器はそれ自体に十分なセキュリティ機能を備えていな�
 - `Simulation` を実行する前に、学習対象の CSV を `data/csv/` 配下に用意しておくこと
 
 ## セットアップ
-よく使うコマンドは `Makefile` で定義済み。とりあえず以下のコマンドを実行すると必要なセットアップは完了する。
+よく使うコマンドは `Makefile` で定義済み。すでに `python --version` が `3.11.x` になっているなら、以下でセットアップできる。
 
 ```bash
 make bootstrap
@@ -24,8 +24,20 @@ make bootstrap
 - `make bootstrap` は `python3.11` を要求する
 - `python3` が別バージョンでも、依存関係の都合で 3.11 以外では失敗する可能性が高い
 - `python3.11` が無い環境では、まず 3.11 を導入してから実行する
+- このリポジトリでは `.python-version` に `3.11.11` を置いている
 
 `zsh` を使っていて、OS パッケージで `python3.11` が入らない環境では `pyenv` の利用を勧める。
+
+### 初回セットアップの推奨手順
+
+`zsh` と `pyenv` を使う前提で、最初は次の順で進めると詰まりにくい。
+
+1. `pyenv` を導入する
+2. `pyenv install 3.11.11`
+3. リポジトリルートで `pyenv local 3.11.11`
+4. `python --version` が `3.11.11` になっていることを確認する
+5. `make bootstrap`
+6. `make test`
 
 ```bash
 sudo apt update
@@ -46,6 +58,7 @@ eval "$(pyenv init -)"
 
 ```bash
 pyenv install 3.11.11
+cd ~/adids
 pyenv local 3.11.11
 python --version
 ```
@@ -63,6 +76,17 @@ sudo apt update
 sudo apt install python3.11 python3.11-venv
 python3.11 --version
 ```
+
+### Python バージョンを切り替えたとき
+
+以前に別バージョンの Python で `.venv` を作っていた場合は、仮想環境を作り直す。
+
+```bash
+rm -rf .venv
+make bootstrap
+```
+
+たとえば `Python 3.14` で作った `.venv` を残したままだと、`tensorflow` や `pandas` の依存解決に失敗することがある。
 
 ## 実行
 本プロジェクトの実行モードは `Simulation` と `Live` の大きく2つ存在する。

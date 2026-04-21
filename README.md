@@ -58,8 +58,40 @@ adids/
 
 - 開発者向けの現状整理と TODO は [src/docs/開発タスク.md](src/docs/開発タスク.md) を参照。
 - 詳細なテスト戦略と現在のカバレッジは [src/docs/テスト方針.md](src/docs/テスト方針.md) を参照。
-- 補助ユーティリティの設定と実行方法は [src/docs/ユーティリティ利用方法.md](src/docs/ユーティリティ利用方法.md) を参照。
 - よく使うプログラムは`make`コマンドで呼び出せるようにしてある。
 
 ## makeコマンド集
+
+### メイン実行系
+
+```bash
+make venv
+make install
+make bootstrap
+make run
+make test
+```
+
+### 特徴量抽出系
+
+```bash
+make pcap-to-log # pcapファイルからlogファイルを作成
+make log-to-csv  # logファイルからpcapファイルを作成
+```
+
+
+### データ加工系
+
+```bash
+make run
+make test
+```
+
+### グラフ作成系
+
+```bash
+make run
+make test
+```
+
 

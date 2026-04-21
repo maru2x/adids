@@ -1,0 +1,8 @@
+{
+  "Combiner": {
+    "INPUT_DIR_A": "data/csv/unproc/benign/conn",
+    "INPUT_DIR_B": "data/csv/unproc/malicious/conn",
+    "OUTPUT_DIR": "data/csv/modif/mixed/conn",
+    "CHUNK_SIZE": 3000
+  }
+}

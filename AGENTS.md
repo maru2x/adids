@@ -37,6 +37,8 @@ Important:
 
 When a code change affects behavior, configuration, input/output layout, supported modes, constraints, or test coverage, update the docs in the same turn.
 
+Session-specific rule: In this session, the agent must not modify `README.md` unless the user explicitly asks for it.
+
 Always check:
 - `README.md`
 - `AGENTS.md`
@@ -72,6 +74,7 @@ A change is not done until all of the following are true:
 - `src/docs/実験結果ファイルの見方.md`
 - `src/docs/テスト方針.md`
 - `src/docs/開発タスク.md`
+- `src/docs/ユーティリティ利用方法.md`
 
 ### Runtime
 
@@ -93,6 +96,11 @@ A change is not done until all of the following are true:
 - `src/util/FeatureExtract/Zeek/settings.json`
 - `src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py`
 - `src/util/FeatureExtract/Legacy/settings.json`
+
+### Utility data modification
+
+- `src/util/DataModified/combiner.py`
+- `src/util/DataModified/settings.json`
 
 ### Tests / CI
 

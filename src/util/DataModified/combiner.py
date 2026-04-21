@@ -1,13 +1,24 @@
 import csv
+import json
 import os
 from datetime import datetime
+from pathlib import Path
 import pandas as pd
+
+
+SETTINGS_PATH = Path(__file__).with_name("settings.json")
+
+
+with SETTINGS_PATH.open("r", encoding="utf-8") as f:
+    settings = json.load(f)
+
+combiner_settings = settings["Combiner"]
 # --- 二つのデータセットを時系列順に結合するスクリプト ------------------------------------------------------------------------ #
-d1_folder_path: str = "/mnt/nas0/g005/murasemaru/data/csv/zeek/2201Lab01/conn"
-d2_folder_path: str = "/mnt/nas0/g005/murasemaru/data/csv/zeek/2201AusEast/conn"
-dataset_size = 3000
+d1_folder_path: str = combiner_settings["INPUT_DIR_A"]
+d2_folder_path: str = combiner_settings["INPUT_DIR_B"]
+dataset_size = combiner_settings["CHUNK_SIZE"]
 # --- Create output directory
-output_dir_path: str = f"/mnt/nas0/g005/murasemaru/data/csv/zeek/modif/{os.path.basename(d1_folder_path)}+{os.path.basename(d2_folder_path)}"
+output_dir_path: str = combiner_settings["OUTPUT_DIR"]
 
 # ------------------------------------------------------------------------------------------------------------------------- #
 combined_row_count = 0

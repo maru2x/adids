@@ -1,11 +1,11 @@
 {
   "PcapToLog": {
-      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/pcap/202201/2201Lab01/",
-      "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/csv/zeek/202201/2201Lab01/"
+      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/pcap/202201/2201Lab04/",
+      "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/202201/"
   },
   "LogToCsv": {
-      "INPUT_DIR_PATH": "data/logs/unproc/test_region",
-      "OUTPUT_ROOT_DIR_PATH": "data/csv/unproc",
+      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/202201/2201Lab04/",
+      "OUTPUT_ROOT_DIR_PATH": "data/csv/zeek",
       "TARGET_LOGS": [
           "conn.log"
       ],

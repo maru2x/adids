@@ -4,66 +4,66 @@
     "TF_FORCE_GPU_ALLOW_GROWTH": "true",
     "CUDA_VISIBLE_DEVICES": "-1"
   },
- "USER_DIR" : "/home/mnl/adids",
-  "MODEL_CODE" : 0,
-  "FOUNDATION_MODEL_PATH": "",
-  "FeatureSchema": {
-    "MODE": "split",
-    "LABEL_COLUMN": "label",
-    "LEGACY_FEATURES": [
-      "rcv_packet_count",
-      "snd_packet_count",
-      "tcp_count",
-      "udp_count",
-      "most_port",
-      "port_count",
-      "rcv_max_interval",
-      "rcv_min_interval",
-      "rcv_max_length",
-      "rcv_min_length",
-      "snd_max_interval",
-      "snd_min_interval",
-      "snd_max_length",
-      "snd_min_length"
-    ],
-    "LABEL_FEATURES": [
-      "conn_state"
-    ],
-    "VECTOR_FEATURES": [
-      "duration",
-      "orig_bytes",
-      "resp_bytes",
-      "orig_pkts",
-      "resp_pkts",
-      "orig_ip_bytes",
-      "resp_ip_bytes",
-      "missed_bytes",
-      "local_orig",
-      "local_resp"
-    ]
-  },
- "DATASETS_DIR_PATH": "/home/mnl/adids/data/csv",
- "SESSION_START_DATE": "2022-08-03 16:50:07",
- "TargetRange": {
-  "DAYS": 1,
-  "HOURS": 18,
-  "MINUTES": 0,
-  "SECONDS": 0
- },
-  "ONLINE_MODE": 0,
-  "RETRAINING_MODE": "dy",
-  "RETRAINING_INTERVAL": 1800,
-  "EVALUATE_UNIT_INTERVAL" : 1800,
-  "TrainingDefine": {
-    "EPOCHS": 1,
-    "BATCH_SIZE": 256
-  },
-  "DriftDetection": {
-    "OBS_MODE": 0,
-    "DRIFT_DETECTION_UNIT_INTERVAL" : 5,
-    "ENSEMBLE_METHOD_CODE" : 0,
-    "WindowConfig": [
-      {"CURRENT_WIN_SIZE": 600, "PAST_WIN_SIZE": 3600, "METHOD_CODE": 1, "K" : 8, "THRESHOLD": 0.025}
-    ]
-  }
+    "USER_DIR" : "/home/shu-murase/adids",
+    "MODEL_CODE" : 0,
+    "FOUNDATION_MODEL_PATH": "",
+    "FeatureSchema": {
+        "MODE": "split",
+        "LABEL_COLUMN": "label",
+        "LEGACY_FEATURES": [
+            "rcv_packet_count",
+            "snd_packet_count",
+            "tcp_count",
+            "udp_count",
+            "most_port",
+            "port_count",
+            "rcv_max_interval",
+            "rcv_min_interval",
+            "rcv_max_length",
+            "rcv_min_length",
+            "snd_max_interval",
+            "snd_min_interval",
+            "snd_max_length",
+            "snd_min_length"
+        ],
+        "LABEL_FEATURES": [
+            "conn_state"
+        ],
+        "VECTOR_FEATURES": [
+            "duration",
+            "orig_bytes",
+            "resp_bytes",
+            "orig_pkts",
+            "resp_pkts",
+            "orig_ip_bytes",
+            "resp_ip_bytes",
+            "missed_bytes",
+            "local_orig",
+            "local_resp"
+        ]
+    },
+    "DATASETS_DIR_PATH": "/home/shu-murase/adids/data/csv/zeek/2201Lab04/conn/",
+    "SESSION_START_DATE": "2022-08-03 16:50:07",
+    "TargetRange": {
+        "DAYS": 1,
+        "HOURS": 18,
+        "MINUTES": 0,
+        "SECONDS": 0
+    },
+    "ONLINE_MODE": 0,
+    "RETRAINING_MODE": "st",
+    "RETRAINING_INTERVAL": 3600,
+    "EVALUATE_UNIT_INTERVAL" : 3600,
+    "TrainingDefine": {
+        "EPOCHS": 1,
+        "BATCH_SIZE": 256
+    },
+    "DriftDetection": {
+        "OBS_MODE": 0,
+        "DRIFT_DETECTION_UNIT_INTERVAL" : 5,
+        "ENSEMBLE_METHOD_CODE" : 0,
+        "WindowConfig": [
+            {"CURRENT_WIN_SIZE": 600, "PAST_WIN_SIZE": 3600, "METHOD_CODE": 1, "K" : 8, "THRESHOLD": 0.025}
+        ]
+    }
 }

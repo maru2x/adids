@@ -13,7 +13,7 @@ Legacyモードは、卒論研究の際に使用していた特徴量。ただ�
 
 ### 利用方法
 
-Legacyモードでは `src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py` を直接実行する。
+Legacyモードでは `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` を直接実行する。
 各種設定は `src/util/FeatureExtract/Legacy/settings.json` で行う。
 `TRAFFIC_DATA_PATH` に指定したpcapファイル、もしくはpcapファイルを含むディレクトリを入力として `pcap -> csv` を直接実行する。
 出力先は `data/csv/unproc/<init_time>-<input_name>/` 配下となる。
@@ -34,21 +34,21 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py` を
 `pcap-to-log`はpcapファイルをlogファイルに変換するスクリプトで、`log-to-csv`はlogファイルをcsvファイルに変換するスクリプトである。
 また、両コマンドともに `Makefile` で定義しているが、実際の処理ロジックは以下のような対応関係で Python スクリプトに分離している。
 
-- `pcap-to-log`: `src/util/FeatureExtract/Zeek/PcapToLogExtractor.py`
-- `log-to-csv`: `src/util/FeatureExtract/Zeek/LogToCsvExtractor.py`
-- 拡張子なし PCAP / PCAPNG の補助リネーム: `src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py`
+- `pcap-to-log`: `src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py`
+- `log-to-csv`: `src/util/FeatureExtract/Zeek/log_to_csv_extractor.py`
+- 拡張子なし PCAP / PCAPNG の補助リネーム: `src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py`
 
 `pcap-to-log` は拡張子が `.pcap` または `.pcapng` のファイルを再帰収集する。
 そのため、拡張子なしの PCAP / PCAPNG が混ざっている場合は、事前に補助スクリプトで `.pcap` / `.pcapng` を付けてから `make pcap-to-log` を実行する。
 
 ```bash
-python3 src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py data/pcap/test_region
+python3 src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py data/pcap/test_region
 ```
 
 実際に変更せず確認だけしたい場合は `--dry-run` を付ける。
 
 ```bash
-python3 src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py data/pcap/test_region --dry-run
+python3 src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py data/pcap/test_region --dry-run
 ```
 
 #### pcap-to-logの使い方

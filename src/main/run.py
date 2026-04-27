@@ -1,9 +1,9 @@
 import time
 
 
-from ModelFactory import *
-from SettingsLoader import *
-from SessionController import *
+from model_factory import *
+from settings_loader import *
+from session_controller import *
 
 def main():
 

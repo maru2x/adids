@@ -5,7 +5,7 @@ import pandas as pd
 import pytz
 from sklearn.preprocessing import MinMaxScaler
 
-from SessionDefiner import *
+from session_definer import *
 
 
 class SessionController:

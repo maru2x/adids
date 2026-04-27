@@ -37,10 +37,10 @@ adids/
 ├─ .github/workflows/       # GitHub Actions
 ├─ src/
 │  ├─ main/                 # 実行本体（make run の入口）
-│  │  ├─ Run.py
+│  │  ├─ run.py
 │  │  ├─ settings.json
-│  │  ├─ SessionController.py
-│  │  └─ SessionDefiner.py
+│  │  ├─ session_controller.py
+│  │  └─ session_definer.py
 │  ├─ docs/                 # 補足ドキュメント
 │  ├─ util/                 # 前処理・変換などのユーティリティ
 │  │  ├─ FeatureExtract/    # Legacy / Zeek の特徴量抽出
@@ -97,4 +97,3 @@ make run
 make docs-check
 make test
 ```
-

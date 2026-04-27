@@ -7,7 +7,7 @@
 現在の本体は次の2種類を扱う。
 
 - `split`: Zeek モード向け
-- `legacy`: 旧 `PcapToCsvExtractor.py` 向け
+- `legacy`: 旧 `pcap_to_csv_extractor.py` 向け
 
 重要:
 - `DATASETS_DIR_PATH` には **CSV ファイルだけが並ぶディレクトリ** を指定する
@@ -177,7 +177,7 @@ data/csv/unproc/<batch_name>/conn
 
 ### 想定用途
 
-`src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py` の出力を読むときに使う。
+`src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` の出力を読むときに使う。
 
 ### 必須列
 

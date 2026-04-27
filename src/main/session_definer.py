@@ -2,9 +2,9 @@ import os
 import re
 import tensorflow as tf
 
-from Evaluator import evaluate
-from Trainer import train
-from DriftDetection import *
+from evaluator import evaluate
+from trainer import train
+from drift_detection import *
 
 class NoRetrainSession:
     def __init__(self, loader, model_factory, tr_results_list, eval_results_list, output_path):

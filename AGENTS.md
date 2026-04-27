@@ -94,23 +94,23 @@ A change is not done until all of the following are true:
 
 ### Runtime
 
-- `src/main/Run.py`
+- `src/main/run.py`
 - `src/main/settings.json`
-- `src/main/SettingsLoader.py`
-- `src/main/SessionController.py`
-- `src/main/SessionDefiner.py`
-- `src/main/DriftDetection.py`
-- `src/main/ModelFactory.py`
-- `src/main/Trainer.py`
-- `src/main/Evaluator.py`
+- `src/main/settings_loader.py`
+- `src/main/session_controller.py`
+- `src/main/session_definer.py`
+- `src/main/drift_detection.py`
+- `src/main/model_factory.py`
+- `src/main/trainer.py`
+- `src/main/evaluator.py`
 
 ### Feature extraction
 
-- `src/util/FeatureExtract/Zeek/PcapToLogExtractor.py`
-- `src/util/FeatureExtract/Zeek/LogToCsvExtractor.py`
-- `src/util/FeatureExtract/Zeek/NormalizePcapExtensions.py`
+- `src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py`
+- `src/util/FeatureExtract/Zeek/log_to_csv_extractor.py`
+- `src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py`
 - `src/util/FeatureExtract/Zeek/settings.json`
-- `src/util/FeatureExtract/Legacy/PcapToCsvExtractor.py`
+- `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py`
 - `src/util/FeatureExtract/Legacy/settings.json`
 
 ### Utility data modification
@@ -177,7 +177,7 @@ That directory contains subdirectories, so `make run` can fail with `IsADirector
 
 `RETRAINING_MODE = "dy"` with `ENSEMBLE_METHOD_CODE = 0` is currently unsafe.
 The current implementation casts raw sigmoid probabilities with `int()`, so `0.7` becomes `0`.
-If you touch dynamic mode, inspect `src/main/DriftDetection.py` first.
+If you touch dynamic mode, inspect `src/main/drift_detection.py` first.
 
 ### Trap 3: model support is uneven
 

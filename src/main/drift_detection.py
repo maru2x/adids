@@ -227,7 +227,7 @@ def euc_distance(scaled_cw: np.ndarray, scaled_pw: np.ndarray, threshold: float,
     return mean_distance, mean_distance > threshold
 
 
-def euc_distance_HNSW(scaled_cw: np.ndarray, scaled_pw: np.ndarray, threshold: float, k: int):
+def euc_distance_hnsw(scaled_cw: np.ndarray, scaled_pw: np.ndarray, threshold: float, k: int):
     """
     ユークリッド距離行列を計算し，行ごとの上位N個の平均ユークリッド距離を求める．
     平均類似度が閾値以下であるかを判定する．

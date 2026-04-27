@@ -29,7 +29,7 @@ bootstrap: venv install
 
 .PHONY: run
 run:
-	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" Run.py
+	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" run.py
 
 .PHONY: docs-check
 docs-check:
@@ -42,8 +42,8 @@ test:
 
 .PHONY: pcap-to-log
 pcap-to-log:
-	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/PcapToLogExtractor.py"
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py"
 
 .PHONY: log-to-csv
 log-to-csv:
-	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/LogToCsvExtractor.py"
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/log_to_csv_extractor.py"

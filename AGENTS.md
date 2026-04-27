@@ -124,8 +124,7 @@ A change is not done until all of the following are true:
 - `src/test/test_docs_consistency.py`
 - `src/test/test_csv_daytime_override.py`
 - `src/test/test_two_csv_combine.py`
-- `src/test/test_zeek_extractors.py`
-- `src/test/test_main_pipeline.py`
+- `src/test/manual/`
 - `.github/workflows/ci.yml`
 
 ## 4. Current Repository Contracts
@@ -203,22 +202,15 @@ It performs a Python syntax pass with `compileall`, then runs the unit tests.
 
 Current coverage:
 - baseline consistency between `README.md`, `AGENTS.md`, and the required files in `src/docs/`
+- `src/test/` top-level layout stays reserved for automated tests
 - `csv_daytime_override.py` baseline shift and missing-`daytime` failure handling
 - `two_csv_combine.py` ordered merge, chunk splitting, and header mismatch handling
-- mocked `pcap-to-log` batch/timestamp layout
-- `pcap-to-log` cleanup when Zeek execution fails
-- recursive rename helper for extensionless PCAP files
-- recursive rename helper for extensionless PCAPNG files
-- `log-to-csv` per-target output dirs
-- `EXCEPTION` exclusion in `log-to-csv`
-- clear failure on invalid JSON Zeek logs
-- single-target `TARGET_LOGS` still creates `conn/`-style subdir
-- runtime smoke tests for `nt`, `st`, and `dy` with a valid split leaf dataset directory
-- runtime failure when dataset dir contains nested folders
-- runtime failure when required feature columns are missing
-- runtime failure when boolean-like feature values are invalid
+- `two_csv_combine.py` invalid daytime, empty input, non-positive chunk size, and non-empty output failure handling
 
-CI does **not** require an actual `zeek` binary because the Zeek call is mocked.
+CI currently does **not** cover:
+- Zeek extractor behavior
+- runtime smoke tests
+- actual `zeek` execution
 
 ## 7. Recommended Commands
 

@@ -32,9 +32,8 @@ make run
 ```text
 adids/
 ├─ AGENTS.md                # 他モデル向けの入口ガイド
-├─ Makefile                 # bootstrap / run / test / pcap-to-log / log-to-csv
+├─ Makefile                 # bootstrap / run / docs-check / test / pcap-to-log / log-to-csv
 ├─ requirements.txt         # 依存の固定
-├─ tests/                   # CI 用の自動テスト
 ├─ .github/workflows/       # GitHub Actions
 ├─ src/
 │  ├─ main/                 # 実行本体（make run の入口）
@@ -46,7 +45,9 @@ adids/
 │  ├─ util/                 # 前処理・変換などのユーティリティ
 │  │  ├─ FeatureExtract/    # Legacy / Zeek の特徴量抽出
 │  │  └─ DataModified/      # CSV 加工用の補助スクリプト
-│  └─ test/                 # 旧来の試験・検証スクリプト
+│  └─ test/                 # 自動テストと手動検証用スクリプト
+│     ├─ test_*.py          # CI 用の自動テスト
+│     └─ manual/            # 手動確認用スクリプトや補助ファイル
 ├─ data/                    # 分析基盤上にパスを設定している場合もある
 │  ├─ csv/                  # 学習・評価用CSVの置き場
 │  ├─ logs/                 # Zeekログなど
@@ -68,6 +69,7 @@ adids/
 make venv
 make install
 make bootstrap
+make docs-check
 make run
 make test
 ```
@@ -84,6 +86,7 @@ make log-to-csv  # logファイルからpcapファイルを作成
 
 ```bash
 make run
+make docs-check
 make test
 ```
 
@@ -91,7 +94,7 @@ make test
 
 ```bash
 make run
+make docs-check
 make test
 ```
-
 

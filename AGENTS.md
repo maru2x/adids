@@ -32,12 +32,14 @@ Important:
 - `DATASETS_DIR_PATH` must point to a directory that contains **CSV files only**
 - Do not point it at `data/csv` or `data/csv/unproc`
 - The runtime does not recurse into nested directories
+- Synthetic validation CSVs may be kept under `data/csv/` for local verification, but they must live in a clearly named synthetic/test fixture directory so they are not confused with real datasets.
 
 ## Documentation Consistency Rule
 
 When a code change affects behavior, configuration, input/output layout, supported modes, constraints, or test coverage, update the docs in the same turn.
 
 Session-specific rule: In this session, the agent must not modify `README.md` unless the user explicitly asks for it.
+Session-specific rule: In this session, before changing program behavior or editing program files, the agent must explain why the change is needed and get the user's agreement on the proposed fix.
 
 Always check:
 - `README.md`
@@ -54,6 +56,20 @@ Minimum consistency items:
 Do not finish a behavior-changing task with code updated but docs still describing the old behavior.
 
 If a docs file contains user-authored prose, preserve tone and structure and prefer minimal-diff edits.
+
+## Naming Conventions
+
+Use the following naming rules for Python code in this repository:
+
+- Python file names must use `snake_case`
+- Class names must use `PascalCase`
+- Function names must use `snake_case`
+- Variable names must use `snake_case`
+
+When touching existing code that does not follow these rules:
+- prefer moving it toward these rules if the user has approved the rename or refactor
+- update related docs and tests in the same turn when the visible names change
+- avoid partial renames that leave imports, entry points, or documentation inconsistent
 
 ## Definition of Done
 
@@ -99,14 +115,17 @@ A change is not done until all of the following are true:
 
 ### Utility data modification
 
-- `src/util/DataModified/combiner.py`
+- `src/util/DataModified/two_csv_combine.py`
+- `src/util/DataModified/csv_daytime_override.py`
 - `src/util/DataModified/settings.json`
 
 ### Tests / CI
 
-- `tests/test_docs_consistency.py`
-- `tests/test_zeek_extractors.py`
-- `tests/test_main_pipeline.py`
+- `src/test/test_docs_consistency.py`
+- `src/test/test_csv_daytime_override.py`
+- `src/test/test_two_csv_combine.py`
+- `src/test/test_zeek_extractors.py`
+- `src/test/test_main_pipeline.py`
 - `.github/workflows/ci.yml`
 
 ## 4. Current Repository Contracts
@@ -184,6 +203,8 @@ It performs a Python syntax pass with `compileall`, then runs the unit tests.
 
 Current coverage:
 - baseline consistency between `README.md`, `AGENTS.md`, and the required files in `src/docs/`
+- `csv_daytime_override.py` baseline shift and missing-`daytime` failure handling
+- `two_csv_combine.py` ordered merge, chunk splitting, and header mismatch handling
 - mocked `pcap-to-log` batch/timestamp layout
 - `pcap-to-log` cleanup when Zeek execution fails
 - recursive rename helper for extensionless PCAP files

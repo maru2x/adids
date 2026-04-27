@@ -1,118 +1,203 @@
 import csv
 import json
-import os
 from datetime import datetime
 from pathlib import Path
-import pandas as pd
 
 
 SETTINGS_PATH = Path(__file__).with_name("settings.json")
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-with SETTINGS_PATH.open("r", encoding="utf-8") as f:
-    settings = json.load(f)
+def load_settings(settings_path=SETTINGS_PATH):
+    with Path(settings_path).open("r", encoding="utf-8") as f:
+        settings = json.load(f)
+    return settings["Combiner"]
 
-combiner_settings = settings["Combiner"]
-# --- 二つのデータセットを時系列順に結合するスクリプト ------------------------------------------------------------------------ #
-d1_folder_path: str = combiner_settings["INPUT_DIR_A"]
-d2_folder_path: str = combiner_settings["INPUT_DIR_B"]
-dataset_size = combiner_settings["CHUNK_SIZE"]
-# --- Create output directory
-output_dir_path: str = combiner_settings["OUTPUT_DIR"]
 
-# ------------------------------------------------------------------------------------------------------------------------- #
-combined_row_count = 0
-output_file_count = 0
-d1_iter = iter(sorted(os.listdir(d1_folder_path)))
-d1_file_path: str = f"{d1_folder_path}/{next(d1_iter)}"
-d1 = open(d1_file_path, mode='r')
-d1_reader = csv.reader(d1)
-d1_header = next(d1_reader)
-d1_ts_index = d1_header.index("daytime")
-d1_row = next(d1_reader)
-d1_latest = datetime.strptime(d1_row[d1_ts_index], "%Y-%m-%d %H:%M:%S")
-d1_end_flag = False
-d2_iter = iter(sorted(os.listdir(d2_folder_path)))
-d2_file_path: str = f"{d2_folder_path}/{next(d2_iter)}"
-d2 = open(d2_file_path, mode='r')
-d2_reader = csv.reader(d2)
-d2_header = next(d2_reader)
-d2_ts_index = d2_header.index("daytime")
-d2_row = next(d2_reader)
-d2_latest = datetime.strptime(d2_row[d2_ts_index], "%Y-%m-%d %H:%M:%S")
-d2_end_flag = False
-if d1_latest < d2_latest:
-    print("d1")
-    print(d1_latest)
-    print(d2_latest)
-    combined_list = [d1_row]
-    d1_row = next(d1_reader)
-else:
-    print("d2")
-    print(d1_latest)
-    print(d2_latest)
-    combined_list = [d2_row]
-    d2_row = next(d2_reader)
-os.makedirs(output_dir_path)
-while True:
-    if d1_end_flag and d2_end_flag:
-        combined_df = pd.DataFrame(combined_list)
-        combined_df.to_csv(f"{output_dir_path}/{output_file_count:05d}.csv", index=False, header=d1_header)
-        break
-    elif d1_latest <= d2_latest:
-        combined_row_count += 1
-        if combined_row_count > dataset_size:
-            print(f"output {output_file_count}")
-            output_file_count += 1
-            combined_df = pd.DataFrame(combined_list)
-            date_obj = datetime.strptime(combined_list[0][d1_ts_index], "%Y-%m-%d %H:%M:%S")
-            formatted_date = date_obj.strftime("%Y%m%d%H%M")
-            combined_df.to_csv(f"{output_dir_path}/{output_file_count:05d}_{formatted_date}.csv", index=False,
-                               header=d1_header)
-            combined_list = [d1_row]
-            combined_row_count = 0
-        else:
-            combined_list.append(d1_row)
-        try:
-            d1_row = next(d1_reader)
-            d1_latest = datetime.strptime(d1_row[d1_ts_index], "%Y-%m-%d %H:%M:%S")
-        except StopIteration: # 次の行がないとき
-            d1.close()
-            try:
-                d1_file_path: str = f"{d1_folder_path}/{next(d1_iter)}"
-                d1 = open(d1_file_path, mode='r')
-                d1_reader = csv.reader(d1)
-                d1_header = next(d1_reader)
-                d1_row = next(d1_reader)
-                d1_latest = datetime.strptime(d1_row[d1_ts_index], "%Y-%m-%d %H:%M:%S")
-            except StopIteration: # 次のファイルがないとき
-                combined_list = [d2_row]
-                d1_end_flag = True
+def list_csv_files(input_dir):
+    csv_files = sorted(
+        path for path in Path(input_dir).iterdir() if path.is_file() and path.suffix == ".csv"
+    )
+    if not csv_files:
+        raise ValueError(f"No CSV files found in input directory: {input_dir}")
+    return csv_files
+
+
+def parse_daytime(value, source_name):
+    try:
+        return datetime.strptime(value, DATETIME_FORMAT)
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid daytime value '{value}' in {source_name}. Expected format: {DATETIME_FORMAT}"
+        ) from exc
+
+
+def validate_output_dir(output_dir):
+    output_path = Path(output_dir)
+    if output_path.exists():
+        if any(output_path.iterdir()):
+            raise ValueError(f"OUTPUT_DIR must be empty before running: {output_dir}")
     else:
-        combined_row_count += 1
-        if combined_row_count > dataset_size:
-            print(f"output {output_file_count}")
-            output_file_count += 1
-            combined_df = pd.DataFrame(combined_list)
-            date_obj = datetime.strptime(combined_list[0][d2_ts_index], "%Y-%m-%d %H:%M:%S")
-            formatted_date = date_obj.strftime("%Y%m%d%H%M")
-            combined_df.to_csv(f"{output_dir_path}/{output_file_count:05d}_{formatted_date}.csv", index=False, header=d1_header)
-            combined_list = [d2_row]
-            combined_row_count = 0
-        else:
-            combined_list.append(d2_row)
+        output_path.mkdir(parents=True, exist_ok=True)
+    return output_path
+
+
+class CsvSequence:
+    def __init__(self, csv_files):
+        self.csv_files = iter(csv_files)
+        self.expected_header = None
+        self.current_file = None
+        self.current_path = None
+        self.reader = None
+        self.current_row = None
+        self.current_dt = None
+        self.header = None
+        self.ended = False
         try:
-            d2_row = next(d2_reader)
-            d2_latest = datetime.strptime(d2_row[d2_ts_index], "%Y-%m-%d %H:%M:%S")
-        except StopIteration: # 次の行がないとき
-            d2.close()
+            self.advance()
+        except Exception:
+            self.close()
+            raise
+
+    def close(self):
+        if self.current_file is not None:
+            self.current_file.close()
+            self.current_file = None
+            self.reader = None
+            self.current_path = None
+
+    def _open_next_file(self):
+        self.close()
+        while True:
             try:
-                d2_file_path: str = f"{d2_folder_path}/{next(d2_iter)}"
-                d2 = open(d2_file_path, mode='r')
-                d2_reader = csv.reader(d2)
-                d2_header = next(d2_reader)
-                d2_row = next(d2_reader)
-                d2_latest = datetime.strptime(d2_row[d2_ts_index], "%Y-%m-%d %H:%M:%S")
-            except StopIteration: # 次のファイルがないとき
-                combined_list = [d1_row]
-                d2_end_flag = True
+                next_path = next(self.csv_files)
+            except StopIteration:
+                self.ended = True
+                self.header = self.expected_header
+                return False
+
+            current_file = next_path.open("r", encoding="utf-8", newline="")
+            reader = csv.DictReader(current_file)
+            fieldnames = reader.fieldnames
+            if not fieldnames or "daytime" not in fieldnames:
+                current_file.close()
+                raise ValueError(f"Missing 'daytime' column in {next_path}")
+            if self.expected_header is None:
+                self.expected_header = list(fieldnames)
+            elif list(fieldnames) != self.expected_header:
+                current_file.close()
+                raise ValueError(
+                    f"CSV header mismatch in {next_path}. Expected {self.expected_header}, got {list(fieldnames)}"
+                )
+
+            self.current_file = current_file
+            self.current_path = next_path
+            self.reader = reader
+            self.header = self.expected_header
+            return True
+
+    def advance(self):
+        while True:
+            # Header-only CSVs are skipped so downstream merge logic always sees a real row or EOF.
+            if self.reader is None and not self._open_next_file():
+                self.current_row = None
+                self.current_dt = None
+                return
+            try:
+                row = next(self.reader)
+            except StopIteration:
+                self.reader = None
+                continue
+
+            self.current_row = row
+            self.current_dt = parse_daytime(row["daytime"], self.current_path.name)
+            self.ended = False
+            return
+
+    def pop_current(self):
+        if self.ended or self.current_row is None:
+            raise StopIteration("No current row available.")
+        row = dict(self.current_row)
+        self.advance()
+        return row
+
+
+def output_filename(output_index, first_daytime):
+    return f"{output_index:05d}_{first_daytime.strftime('%Y%m%d%H%M')}.csv"
+
+
+def flush_rows(output_dir, fieldnames, rows, output_index):
+    if not rows:
+        return output_index
+    first_daytime = parse_daytime(rows[0]["daytime"], "combined output")
+    output_path = Path(output_dir) / output_filename(output_index, first_daytime)
+    with output_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    rows.clear()
+    return output_index + 1
+
+
+def combine_csv_directories(input_dir_a, input_dir_b, output_dir, chunk_size):
+    if chunk_size <= 0:
+        raise ValueError(f"CHUNK_SIZE must be a positive integer: {chunk_size}")
+
+    csv_files_a = list_csv_files(input_dir_a)
+    csv_files_b = list_csv_files(input_dir_b)
+    output_path = validate_output_dir(output_dir)
+
+    seq_a = None
+    seq_b = None
+    try:
+        seq_a = CsvSequence(csv_files_a)
+        seq_b = CsvSequence(csv_files_b)
+
+        if seq_a.header is None or seq_b.header is None:
+            raise ValueError("Input directories must contain at least one data row.")
+        if seq_a.current_row is None or seq_b.current_row is None:
+            raise ValueError("Input directories must contain at least one data row.")
+        if seq_a.header != seq_b.header:
+            raise ValueError(
+                f"CSV header mismatch between directories. A={seq_a.header}, B={seq_b.header}"
+            )
+
+        combined_rows = []
+        output_index = 0
+
+        while not (seq_a.ended and seq_b.ended):
+            # Keep a single pending buffer and always consume the earlier row first.
+            # If one side has ended, continue draining the other side without resetting the buffer.
+            if seq_a.ended:
+                combined_rows.append(seq_b.pop_current())
+            elif seq_b.ended:
+                combined_rows.append(seq_a.pop_current())
+            elif seq_a.current_dt <= seq_b.current_dt:
+                combined_rows.append(seq_a.pop_current())
+            else:
+                combined_rows.append(seq_b.pop_current())
+
+            if len(combined_rows) >= chunk_size:
+                output_index = flush_rows(output_path, seq_a.header, combined_rows, output_index)
+
+        flush_rows(output_path, seq_a.header, combined_rows, output_index)
+    finally:
+        if seq_a is not None:
+            seq_a.close()
+        if seq_b is not None:
+            seq_b.close()
+
+
+def main():
+    settings = load_settings()
+    combine_csv_directories(
+        input_dir_a=settings["INPUT_DIR_A"],
+        input_dir_b=settings["INPUT_DIR_B"],
+        output_dir=settings["OUTPUT_DIR"],
+        chunk_size=settings["CHUNK_SIZE"],
+    )
+    print("csv combine complete")
+
+
+if __name__ == "__main__":
+    main()

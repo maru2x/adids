@@ -4,5 +4,10 @@
     "INPUT_DIR_B": "data/csv/unproc/malicious/conn",
     "OUTPUT_DIR": "data/csv/modif/mixed/conn",
     "CHUNK_SIZE": 3000
+  },
+  "DaytimeOverride": {
+    "INPUT_DIR": "data/csv/unproc/malicious/conn",
+    "OUTPUT_DIR": "data/csv/modif/malicious_shifted/conn",
+    "BASELINE": "2022-01-01 09:03:59"
   }
 }

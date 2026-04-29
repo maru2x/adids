@@ -34,13 +34,13 @@ make run
 ```text
 adids/
 ├─ AGENTS.md                # 他モデル向けの入口ガイド
-├─ Makefile                 # bootstrap / run / docs-check / test / pcap-to-log / log-to-csv
+├─ Makefile                 # bootstrap / run / unit-test / test-e2e / test-all / pcap-to-log / log-to-csv
 ├─ requirements.txt         # 依存の固定
 ├─ .github/workflows/       # GitHub Actions
 ├─ docs/                    # 補足ドキュメント
 ├─ tests/                   # 自動テストと手動検証用スクリプト
 │  ├─ e2e/                  # ブラックボックス的なテスト
-│  ├─ fixture/              # テストに使用するデータセット
+│  ├─ fixtures/             # テストに使用するデータセット
 │  ├─ unit/                 # ホワイトボックス的なテスト
 │  └─ manual/               # 手動確認用スクリプトや補助ファイル
 ├─ src/
@@ -68,16 +68,17 @@ adids/
 make venv
 make install
 make bootstrap
-make docs-check
 make run
-make test
+make unit-test
+make test-e2e
+make test-all
 ```
 
 ### 特徴量抽出系
 
 ```bash
 make pcap-to-log # pcapファイルからlogファイルを作成
-make log-to-csv  # logファイルからpcapファイルを作成
+make log-to-csv  # logファイルからcsvファイルを作成
 ```
 
 
@@ -85,22 +86,18 @@ make log-to-csv  # logファイルからpcapファイルを作成
 
 ```bash
 make run
-make docs-check
-make test
 ```
 
 ### グラフ作成系
 
 ```bash
 make run
-make docs-check
-make test
 ```
 
 ### テスト
 
 ```bash
-make run
-make docs-check
-make test
+make unit-test
+make test-e2e
+make test-all
 ```

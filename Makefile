@@ -31,14 +31,17 @@ bootstrap: venv install
 run:
 	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" run.py
 
-.PHONY: test-unit
-test:
+.PHONY: unit-test
+unit-test:
 	@"$(PYTHON)" -m compileall -q "$(ROOT_DIR)/src"
 	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/unit" -q
 
 .PHONY: test-e2e
 test-e2e:
 	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/e2e" -q -m e2e
+
+.PHONY: test-all
+test-all: unit-test test-e2e
 
 .PHONY: pcap-to-log
 pcap-to-log:

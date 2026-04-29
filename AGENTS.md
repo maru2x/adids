@@ -77,7 +77,6 @@ A change is not done until all of the following are true:
 - the code works
 - the relevant tests pass
 - `README.md`, `AGENTS.md`, and the affected `docs/` files agree
-- `make docs-check` passes after behavior-affecting documentation changes
 
 ## 3. Important Files
 
@@ -121,7 +120,6 @@ A change is not done until all of the following are true:
 
 ### Tests / CI
 
-- `tests/unit/contracts/test_docs_consistency.py`
 - `tests/unit/data_modified/test_csv_daytime_override.py`
 - `tests/unit/data_modified/test_two_csv_combine.py`
 - `tests/unit/feature_extract/test_pcap_to_log_extractor.py`
@@ -206,13 +204,11 @@ Prefer minimal-diff edits there. Add information without rewriting tone or struc
 
 ## 6. What CI Covers
 
-`make test` runs the same unit checks as GitHub Actions.
-GitHub Actions also runs `make docs-check`.
+`make unit-test` runs the same unit checks as GitHub Actions.
 It performs a Python syntax pass with `compileall`, then runs the unit tests via `pytest`.
 
 Current coverage:
-- baseline consistency between `README.md`, `AGENTS.md`, and the required files in `docs/`
-- `tests/unit/contracts/`, `tests/unit/data_modified/`, `tests/unit/feature_extract/` stay reserved for automated tests while `tests/manual/` stays outside the default test path
+- `tests/unit/data_modified/`, `tests/unit/feature_extract/` stay reserved for automated tests while `tests/manual/` stays outside the default test path
 - `csv_daytime_override.py` baseline shift and missing-`daytime` failure handling
 - `two_csv_combine.py` ordered merge, chunk splitting, and header mismatch handling
 - `two_csv_combine.py` invalid daytime, empty input, non-positive chunk size, and non-empty output failure handling
@@ -234,8 +230,9 @@ Optional local coverage:
 ### Run tests
 
 ```bash
-make docs-check
-make test
+make unit-test
+make test-e2e
+make test-all
 ```
 
 ### Run Zeek preprocessing

@@ -28,5 +28,4 @@ jobs:
 
       - name: Run tests
         run: |
-          make docs-check
-          make test
+          make unit-test

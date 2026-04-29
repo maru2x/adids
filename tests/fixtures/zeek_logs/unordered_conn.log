@@ -1,0 +1,2 @@
+{"ts": 1640995200, "duration": 600, "id.orig_h": "192.168.0.10", "id.resp_h": "8.8.8.8", "conn_state": "SF"}
+{"ts": 1640995205, "duration": 1, "id.orig_h": "192.168.0.10", "id.resp_h": "8.8.4.4", "conn_state": "SF"}

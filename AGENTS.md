@@ -121,10 +121,14 @@ A change is not done until all of the following are true:
 
 ### Tests / CI
 
-- `tests/unit/test_docs_consistency.py`
-- `tests/unit/test_csv_daytime_override.py`
-- `tests/unit/test_two_csv_combine.py`
-- `tests/unit/test_zeek_log_to_csv_extractor.py`
+- `tests/unit/contracts/test_docs_consistency.py`
+- `tests/unit/data_modified/test_csv_daytime_override.py`
+- `tests/unit/data_modified/test_two_csv_combine.py`
+- `tests/unit/feature_extract/test_pcap_to_log_extractor.py`
+- `tests/unit/feature_extract/test_zeek_log_to_csv_extractor.py`
+- `tests/e2e/feature_extract/test_zeek_pcap_to_csv.py`
+- `tests/e2e/runtime/test_run_smoke.py`
+- `tests/fixtures/`
 - `tests/manual/`
 - `.github/workflows/ci.yml`
 
@@ -202,21 +206,28 @@ Prefer minimal-diff edits there. Add information without rewriting tone or struc
 
 ## 6. What CI Covers
 
-`make test` runs the same checks as GitHub Actions.
-It performs a Python syntax pass with `compileall`, then runs the unit tests.
+`make test` runs the same unit checks as GitHub Actions.
+GitHub Actions also runs `make docs-check`.
+It performs a Python syntax pass with `compileall`, then runs the unit tests via `pytest`.
 
 Current coverage:
 - baseline consistency between `README.md`, `AGENTS.md`, and the required files in `docs/`
-- `tests/unit/` stays reserved for automated tests while `tests/manual/` stays outside the default test path
+- `tests/unit/contracts/`, `tests/unit/data_modified/`, `tests/unit/feature_extract/` stay reserved for automated tests while `tests/manual/` stays outside the default test path
 - `csv_daytime_override.py` baseline shift and missing-`daytime` failure handling
 - `two_csv_combine.py` ordered merge, chunk splitting, and header mismatch handling
 - `two_csv_combine.py` invalid daytime, empty input, non-positive chunk size, and non-empty output failure handling
+- `pcap_to_log_extractor.py` file collection, path resolution, timestamp scan, unique-dir naming, and Zeek error propagation
 - `log_to_csv_extractor.py` flow-end-based ordering and duration fallback behavior
 
 CI currently does **not** cover:
 - `pcap -> zeek log`
 - runtime smoke tests
 - actual `zeek` execution
+
+Optional local coverage:
+- `make test-e2e`
+- `tests/e2e/feature_extract/test_zeek_pcap_to_csv.py` runs real `pcap -> zeek log -> csv` flows when `zeek` is installed
+- `tests/e2e/runtime/test_run_smoke.py` checks that the `src/main/` runtime can process a minimal CSV and write expected output files
 
 ## 7. Recommended Commands
 

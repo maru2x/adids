@@ -4,6 +4,8 @@ other/
 *.pcap
 *.csv
 *.pickle
+!tests/fixtures/**/*.pcap
+!tests/fixtures/**/*.csv
 **/.ipynb_checkpoints/
 *.pyc
 __pycache__/

@@ -38,6 +38,9 @@ adids/
 ├─ docs/                    # 補足ドキュメント
 ├─ tests/                   # 自動テストと手動検証用スクリプト
 │  ├─ unit/                 # 既定で走る自動テスト
+│  │  ├─ contracts/         # docs / 導線契約の整合チェック
+│  │  ├─ data_modified/     # CSV加工ユーティリティ
+│  │  └─ feature_extract/   # 特徴量抽出ロジック
 │  └─ manual/               # 手動確認用スクリプトや補助ファイル
 ├─ src/
 │  ├─ main/                 # 実行本体（make run の入口）

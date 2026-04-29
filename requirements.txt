@@ -28,6 +28,7 @@ protobuf==6.33.4
 Pygments==2.19.2
 python-dateutil==2.9.0.post0
 pytz==2025.2
+pytest==8.4.2
 requests==2.32.5
 rich==14.3.1
 scikit-learn==1.8.0

@@ -44,7 +44,7 @@ Session-specific rule: In this session, before changing program behavior or edit
 Always check:
 - `README.md`
 - `AGENTS.md`
-- the relevant files under `src/docs/`
+- the relevant files under `docs/`
 
 Minimum consistency items:
 - command names and command examples
@@ -76,7 +76,7 @@ When touching existing code that does not follow these rules:
 A change is not done until all of the following are true:
 - the code works
 - the relevant tests pass
-- `README.md`, `AGENTS.md`, and the affected `src/docs/` files agree
+- `README.md`, `AGENTS.md`, and the affected `docs/` files agree
 - `make docs-check` passes after behavior-affecting documentation changes
 
 ## 3. Important Files
@@ -84,13 +84,13 @@ A change is not done until all of the following are true:
 ### User-facing docs
 
 - `README.md`
-- `src/docs/pcapファイルから特徴量を抽出する方法.md`
-- `src/docs/設定ファイルの各種パラメータ.md`
-- `src/docs/CSVスキーマ仕様.md`
-- `src/docs/実験結果ファイルの見方.md`
-- `src/docs/テスト方針.md`
-- `src/docs/開発タスク.md`
-- `src/docs/ユーティリティ利用方法.md`
+- `docs/pcapファイルから特徴量を抽出する方法.md`
+- `docs/設定ファイルの各種パラメータ.md`
+- `docs/CSVスキーマ仕様.md`
+- `docs/実験結果ファイルの見方.md`
+- `docs/テスト方針.md`
+- `docs/開発タスク.md`
+- `docs/ユーティリティ利用方法.md`
 
 ### Runtime
 
@@ -121,10 +121,11 @@ A change is not done until all of the following are true:
 
 ### Tests / CI
 
-- `src/test/test_docs_consistency.py`
-- `src/test/test_csv_daytime_override.py`
-- `src/test/test_two_csv_combine.py`
-- `src/test/manual/`
+- `tests/unit/test_docs_consistency.py`
+- `tests/unit/test_csv_daytime_override.py`
+- `tests/unit/test_two_csv_combine.py`
+- `tests/unit/test_zeek_log_to_csv_extractor.py`
+- `tests/manual/`
 - `.github/workflows/ci.yml`
 
 ## 4. Current Repository Contracts
@@ -164,6 +165,10 @@ For `FeatureSchema.MODE = "split"`, the runtime expects:
 - `conn_state` or whatever is listed in `LABEL_FEATURES`
 - all columns listed in `VECTOR_FEATURES`
 
+In the current Zeek CSV path, `daytime` is the flow end time derived from `ts + duration`.
+When `duration` is missing or invalid, `daytime` falls back to the start time derived from `ts`.
+`duration = 0` is treated as a valid value, not as missing data.
+
 The runtime opens every entry directly under `DATASETS_DIR_PATH`, so nested dirs are invalid input.
 
 ## 5. Known Traps
@@ -192,7 +197,7 @@ Known issues:
 
 ### Trap 4: docs have user-authored wording
 
-`src/docs/pcapファイルから特徴量を抽出する方法.md` contains user-authored prose.
+`docs/pcapファイルから特徴量を抽出する方法.md` contains user-authored prose.
 Prefer minimal-diff edits there. Add information without rewriting tone or structure unless explicitly asked.
 
 ## 6. What CI Covers
@@ -201,14 +206,15 @@ Prefer minimal-diff edits there. Add information without rewriting tone or struc
 It performs a Python syntax pass with `compileall`, then runs the unit tests.
 
 Current coverage:
-- baseline consistency between `README.md`, `AGENTS.md`, and the required files in `src/docs/`
-- `src/test/` top-level layout stays reserved for automated tests
+- baseline consistency between `README.md`, `AGENTS.md`, and the required files in `docs/`
+- `tests/unit/` stays reserved for automated tests while `tests/manual/` stays outside the default test path
 - `csv_daytime_override.py` baseline shift and missing-`daytime` failure handling
 - `two_csv_combine.py` ordered merge, chunk splitting, and header mismatch handling
 - `two_csv_combine.py` invalid daytime, empty input, non-positive chunk size, and non-empty output failure handling
+- `log_to_csv_extractor.py` flow-end-based ordering and duration fallback behavior
 
 CI currently does **not** cover:
-- Zeek extractor behavior
+- `pcap -> zeek log`
 - runtime smoke tests
 - actual `zeek` execution
 
@@ -240,9 +246,9 @@ Read in this order:
 
 1. `AGENTS.md`
 2. `README.md`
-3. `src/docs/設定ファイルの各種パラメータ.md`
-4. `src/docs/CSVスキーマ仕様.md`
-5. `src/docs/実験結果ファイルの見方.md`
-6. `src/docs/テスト方針.md`
-7. `src/docs/開発タスク.md`
+3. `docs/設定ファイルの各種パラメータ.md`
+4. `docs/CSVスキーマ仕様.md`
+5. `docs/実験結果ファイルの見方.md`
+6. `docs/テスト方針.md`
+7. `docs/開発タスク.md`
 8. feature extractor or runtime files relevant to the task

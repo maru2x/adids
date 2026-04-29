@@ -33,12 +33,12 @@ run:
 
 .PHONY: docs-check
 docs-check:
-	@"$(PYTHON)" -m unittest discover -s "$(ROOT_DIR)/src/test" -p 'test_docs_consistency.py' -v -b
+	@"$(PYTHON)" -m unittest discover -s "$(ROOT_DIR)/tests/unit" -p 'test_docs_consistency.py' -v -b
 
 .PHONY: test
 test:
 	@"$(PYTHON)" -m compileall -q "$(ROOT_DIR)/src"
-	@"$(PYTHON)" -m unittest discover -s "$(ROOT_DIR)/src/test" -p 'test_*.py' -v -b
+	@"$(PYTHON)" -m unittest discover -s "$(ROOT_DIR)/tests/unit" -p 'test_*.py' -v -b
 
 .PHONY: pcap-to-log
 pcap-to-log:

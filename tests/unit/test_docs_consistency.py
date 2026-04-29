@@ -6,21 +6,23 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 README_PATH = ROOT_DIR / "README.md"
 AGENTS_PATH = ROOT_DIR / "AGENTS.md"
 MAKEFILE_PATH = ROOT_DIR / "Makefile"
-SRC_TEST_DIR = ROOT_DIR / "src" / "test"
+UNIT_TEST_DIR = ROOT_DIR / "tests" / "unit"
+MANUAL_TEST_DIR = ROOT_DIR / "tests" / "manual"
 
 REQUIRED_DOCS = (
-    "src/docs/設定ファイルの各種パラメータ.md",
-    "src/docs/CSVスキーマ仕様.md",
-    "src/docs/実験結果ファイルの見方.md",
-    "src/docs/テスト方針.md",
-    "src/docs/開発タスク.md",
-    "src/docs/ユーティリティ利用方法.md",
+    "docs/設定ファイルの各種パラメータ.md",
+    "docs/CSVスキーマ仕様.md",
+    "docs/実験結果ファイルの見方.md",
+    "docs/テスト方針.md",
+    "docs/開発タスク.md",
+    "docs/ユーティリティ利用方法.md",
 )
 
 AUTO_TEST_FILES = (
-    "src/test/test_docs_consistency.py",
-    "src/test/test_csv_daytime_override.py",
-    "src/test/test_two_csv_combine.py",
+    "tests/unit/test_docs_consistency.py",
+    "tests/unit/test_csv_daytime_override.py",
+    "tests/unit/test_two_csv_combine.py",
+    "tests/unit/test_zeek_log_to_csv_extractor.py",
 )
 
 README_AND_AGENTS_COMMANDS = (
@@ -63,13 +65,15 @@ class DocsConsistencyTests(unittest.TestCase):
 
     def test_makefile_points_docs_check_to_real_test_file(self):
         makefile_text = self.read_text(MAKEFILE_PATH)
-        self.assertIn('src/test', makefile_text)
+        self.assertIn('tests/unit', makefile_text)
         self.assertIn("test_docs_consistency.py", makefile_text)
-        self.assertTrue((SRC_TEST_DIR / "test_docs_consistency.py").exists())
+        self.assertTrue((UNIT_TEST_DIR / "test_docs_consistency.py").exists())
 
-    def test_src_test_top_level_is_reserved_for_auto_tests(self):
-        allowed_directories = {"manual", "__pycache__"}
-        for entry in SRC_TEST_DIR.iterdir():
+    def test_tests_layout_separates_unit_and_manual(self):
+        self.assertTrue(UNIT_TEST_DIR.is_dir())
+        self.assertTrue(MANUAL_TEST_DIR.is_dir())
+        allowed_directories = {"__pycache__"}
+        for entry in UNIT_TEST_DIR.iterdir():
             with self.subTest(entry=entry.name):
                 if entry.is_dir():
                     self.assertIn(entry.name, allowed_directories)
@@ -77,7 +81,7 @@ class DocsConsistencyTests(unittest.TestCase):
                 self.assertEqual(entry.suffix, ".py")
                 self.assertTrue(
                     entry.name.startswith("test_"),
-                    f"Non-automated file should not live at src/test top level: {entry.name}",
+                    f"Non-automated file should not live at tests/unit top level: {entry.name}",
                 )
 
 

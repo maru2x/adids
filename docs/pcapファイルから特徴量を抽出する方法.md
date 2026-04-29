@@ -103,6 +103,9 @@ make log-to-csv
 このコマンドでは、入力が単一ログディレクトリならその1件をCSVにし、入力がログバッチディレクトリなら配下の各ログディレクトリをまとめてCSV化する。
 `TARGET_LOGS` に複数のログファイル名を指定した場合は、ログ種別ごとにディレクトリを分けてCSVを出力する。単一指定でも同じ構造に揃える。
 出力先は `OUTPUT_ROOT_DIR_PATH/<batch_name>/<target_log_name>/` に揃えられる。`target_log_name` には `conn.log` なら `conn` のように拡張子を除いた名前を使う。
+また、Zeek の `conn.log` にある `ts` は開始時刻なので、そのままでは CSV 上で時系列が逆転しうる。
+そのため現在の `log-to-csv` では、CSV の `daytime` を原則 `ts + duration` から作り、その値で昇順に並べて出力する。
+`duration = 0` は有効値として扱い、`duration` が空文字・欠落・非数値のときだけ `ts` ベースへフォールバックする。
 
 ## 入出力の規約
 

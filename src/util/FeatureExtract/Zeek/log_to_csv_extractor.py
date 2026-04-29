@@ -116,6 +116,10 @@ def iter_records(files: Sequence[Path]) -> Iterator[dict]:
                     ) from exc
 
 
+def load_records(files: Sequence[Path]) -> List[dict]:
+    return list(iter_records(files))
+
+
 def collect_header(records: Iterable[dict]) -> List[str]:
     seen = set()
     header: List[str] = []
@@ -132,15 +136,49 @@ def collect_header(records: Iterable[dict]) -> List[str]:
     return header
 
 
-def convert_ts_to_daytime(value) -> str:
+def parse_unix_ts(value) -> float | None:
     if value is None or value == "":
-        return ""
+        return None
     try:
-        ts = float(value)
+        return float(value)
     except (TypeError, ValueError):
+        return None
+
+
+def parse_duration_seconds(value) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def resolve_flow_end_ts(record: dict) -> float | None:
+    start_ts = parse_unix_ts(record.get("ts"))
+    if start_ts is None:
+        return None
+    duration = parse_duration_seconds(record.get("duration"))
+    if duration is None:
+        return start_ts
+    return start_ts + duration
+
+
+def convert_ts_to_daytime(ts: float | None) -> str:
+    if ts is None:
         return ""
     utc_dt = datetime.fromtimestamp(ts, tz=timezone.utc)
     return utc_dt.astimezone(JST).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def sort_records_by_flow_end_time(records: Sequence[dict]) -> List[dict]:
+    sortable_records = []
+    for index, record in enumerate(records):
+        flow_end_ts = resolve_flow_end_ts(record)
+        sort_key = float("inf") if flow_end_ts is None else flow_end_ts
+        sortable_records.append((sort_key, index, record))
+    sortable_records.sort(key=lambda item: (item[0], item[1]))
+    return [record for _, _, record in sortable_records]
 
 
 def _ip_in_any(ip_str: str, networks: Sequence[str]) -> bool:
@@ -191,16 +229,17 @@ def normalize_value(value):
 
 
 def write_csv(
-    files: Sequence[Path],
+    records: Sequence[dict],
     header: Sequence[str],
     destination: Path,
     network_conf: dict,
 ) -> None:
+    records = sort_records_by_flow_end_time(records)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=header, extrasaction="ignore")
         writer.writeheader()
-        for record in iter_records(files):
+        for record in records:
             if should_exclude_record(record, network_conf):
                 continue
             label = assign_label(record, network_conf)
@@ -209,7 +248,7 @@ def write_csv(
             row = {}
             for key in header:
                 if key == "daytime":
-                    row[key] = convert_ts_to_daytime(record.get("ts", record.get("daytime", "")))
+                    row[key] = convert_ts_to_daytime(resolve_flow_end_ts(record))
                 elif key == "label":
                     row[key] = label
                 else:
@@ -248,8 +287,9 @@ def convert_log_dir(
     target_logs: Sequence[str],
 ) -> None:
     files = find_target_log_files(log_dir, target_logs)
-    header = collect_header(iter_records(files))
-    write_csv(files, header, destination, network_conf)
+    records = load_records(files)
+    header = collect_header(records)
+    write_csv(records, header, destination, network_conf)
 
 
 def main() -> None:

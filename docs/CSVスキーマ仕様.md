@@ -56,6 +56,13 @@ YYYY-MM-DD HH:MM:SS
 
 本体はこの列を `datetime.strptime(..., "%Y-%m-%d %H:%M:%S")` で読む。
 
+Zeek モードの `log-to-csv` では、`daytime` は `conn.log` の `ts` をそのまま使うのではなく、原則として `ts + duration` を JST 文字列へ変換したものになる。
+つまり `daytime` は開始時刻ではなく、CSV 化されたフローが観測完了した時刻として扱う。
+
+補足:
+- `duration = 0` は有効値として扱う
+- `duration` が空文字、欠落、非数値のときだけ `daytime` は `ts` ベースへフォールバックする
+
 ### `label`
 
 どのモードでも `label` 列が必要。
@@ -164,6 +171,8 @@ SF|http
 daytime,label,conn_state,duration,orig_bytes,resp_bytes,orig_pkts,resp_pkts,orig_ip_bytes,resp_ip_bytes,missed_bytes,local_orig,local_resp
 2025-05-13 23:47:27,0,SF,0.0984,71,377,6,4,335,549,0,True,False
 ```
+
+この例では、`daytime` は開始時刻ではなく `ts + duration` の値だと考える。
 
 ### Zeek モードでの標準入力
 

@@ -31,11 +31,7 @@ bootstrap: venv install
 run:
 	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" run.py
 
-.PHONY: docs-check
-docs-check:
-	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/unit/contracts/test_docs_consistency.py" -q
-
-.PHONY: test
+.PHONY: test-unit
 test:
 	@"$(PYTHON)" -m compileall -q "$(ROOT_DIR)/src"
 	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/unit" -q

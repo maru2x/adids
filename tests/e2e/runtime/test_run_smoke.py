@@ -11,6 +11,12 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 SRC_MAIN_DIR = ROOT_DIR / "src" / "main"
 
 
+# Input:
+# - 最小 3 行の split-mode CSV fixture
+# - runtime 用 settings fixture
+# Expectation:
+# - 実行後に output dir, settings_log.json, res_eval.csv, m1_weights が生成される
+# - output dir 名に dataset 名と retraining mode 情報が入る
 @pytest.mark.e2e
 def test_runtime_smoke_writes_expected_output_files(tmp_path):
     dataset_dir, settings_path = prepare_runtime_fixture(tmp_path)
@@ -25,6 +31,12 @@ def test_runtime_smoke_writes_expected_output_files(tmp_path):
     assert output_dir.name.endswith(f"_{dataset_dir.name}_nt_4")
 
 
+# Input:
+# - 同じ最小 runtime fixture
+# Expectation:
+# - res_eval.csv の基本 schema が成立する
+# - 1 セッション分の summary が 1 行で出る
+# - TP/FN/FP/TN の合計が flow_num と一致する
 @pytest.mark.e2e
 def test_runtime_smoke_produces_expected_eval_summary(tmp_path):
     _, settings_path = prepare_runtime_fixture(tmp_path)
@@ -48,6 +60,12 @@ def test_runtime_smoke_produces_expected_eval_summary(tmp_path):
     assert confusion_sum == flow_num
 
 
+# Input:
+# - settings.json 相当の fixture path
+# Expectation:
+# - src/main を import path に載せて SessionController を最後まで実行できる
+# Note:
+# - e2e テストから runtime を直接呼ぶための helper。
 def run_runtime_session(settings_path):
     if str(SRC_MAIN_DIR) not in sys.path:
         sys.path.insert(0, str(SRC_MAIN_DIR))
@@ -68,6 +86,12 @@ def run_runtime_session(settings_path):
     return session
 
 
+# Input:
+# - tmp_path
+# Expectation:
+# - runtime が読める leaf CSV dir と対応 settings.json が生成される
+# Note:
+# - DATASETS_DIR_PATH は nested dir ではなく sample leaf dir を指す。
 def prepare_runtime_fixture(tmp_path):
     root = Path(tmp_path)
     dataset_dir = root / "datasets" / "sample"

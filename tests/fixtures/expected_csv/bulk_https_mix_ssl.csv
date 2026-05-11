@@ -1,0 +1,2 @@
+daytime,label,id.orig_h,id.orig_p,id.resp_h,id.resp_p,version,cipher,server_name,resumed,established,ssl_history
+2022-01-01 09:12:00,0,192.168.0.80,54010,93.184.216.34,443,TLSv13,TLS_AES_256_GCM_SHA384,example.com,False,True,CsiI

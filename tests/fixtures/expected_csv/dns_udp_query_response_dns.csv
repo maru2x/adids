@@ -1,0 +1,2 @@
+daytime,label,proto,id.orig_h,id.orig_p,id.resp_h,id.resp_p,query,qtype_name,rcode_name,answers,AA,TC,RD,RA,rejected
+2022-01-01 09:04:00,0,udp,192.168.0.40,53000,8.8.8.8,53,example.com,A,NOERROR,"[""93.184.216.34""]",False,False,True,True,False

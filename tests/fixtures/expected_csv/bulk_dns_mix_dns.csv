@@ -1,0 +1,3 @@
+daytime,label,proto,id.orig_h,id.orig_p,id.resp_h,id.resp_p,trans_id,rtt,query,qtype_name,rcode_name,answers,AA,TC,RD,RA,rejected
+2022-01-01 09:11:00,0,udp,192.168.0.70,53010,8.8.8.8,53,8193,0.2999999523162842,example.com,A,NOERROR,"[""93.184.216.34""]",False,False,True,True,False
+2022-01-01 09:11:02,0,udp,192.168.0.71,53011,1.1.1.1,53,8194,0.40000009536743164,openai.com,A,NOERROR,"[""104.18.33.45""]",False,False,True,True,False

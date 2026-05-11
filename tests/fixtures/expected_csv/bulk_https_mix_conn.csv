@@ -1,0 +1,2 @@
+daytime,label,proto,service,id.orig_h,id.orig_p,id.resp_h,id.resp_p,conn_state,duration,orig_bytes,resp_bytes,orig_pkts,resp_pkts,orig_ip_bytes,resp_ip_bytes,missed_bytes,local_orig,local_resp,history
+2022-01-01 09:12:01,0,tcp,ssl,192.168.0.80,54010,93.184.216.34,443,SF,1.7000000476837158,1655,3001,10,9,2055,3361,0,True,False,ShADadFf

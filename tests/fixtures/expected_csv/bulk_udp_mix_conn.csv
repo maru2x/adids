@@ -1,0 +1,4 @@
+daytime,label,proto,id.orig_h,id.orig_p,id.resp_h,id.resp_p,conn_state,duration,orig_bytes,resp_bytes,orig_pkts,resp_pkts,orig_ip_bytes,resp_ip_bytes,missed_bytes,local_orig,local_resp,history
+2022-01-01 09:10:01,0,udp,192.168.0.60,48000,8.8.8.8,48001,SF,1.0,1,1,1,1,29,29,0,True,False,Dd
+2022-01-01 09:10:04,1,udp,192.168.0.61,48010,10.0.0.7,48011,SF,2.0,1,1,1,1,29,29,0,True,True,Dd
+2022-01-01 09:10:06,0,udp,192.168.0.62,48020,9.9.9.9,48021,S0,0,,,1,0,29,0,0,True,False,D

@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -26,6 +26,66 @@ jobs:
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run unit tests
         run: |
           make unit-test
+
+  e2e_feature_extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: zeek/zeek:8.0.5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python for pytest
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 python3-pip python3-venv
+
+      - name: Add Zeek to PATH
+        run: |
+          echo "/opt/zeek/bin" >> "$GITHUB_PATH"
+
+      - name: Create virtual environment
+        run: python3 -m venv .venv
+
+      - name: Install test dependencies
+        run: |
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install pytest
+
+      - name: Show Zeek version
+        run: |
+          zeek --version
+
+      - name: Run feature extraction e2e tests
+        run: |
+          .venv/bin/python -m pytest tests/e2e/feature_extract -q
+
+  e2e_runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create virtual environment
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements.txt
+
+      - name: Run runtime e2e tests
+        run: |
+          .venv/bin/python -m pytest tests/e2e/runtime -q

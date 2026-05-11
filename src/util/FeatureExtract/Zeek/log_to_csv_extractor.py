@@ -120,7 +120,24 @@ def load_records(files: Sequence[Path]) -> List[dict]:
     return list(iter_records(files))
 
 
-def collect_header(records: Iterable[dict]) -> List[str]:
+CONN_REQUIRED_COLUMNS = [
+    "daytime",
+    "conn_state",
+    "duration",
+    "orig_bytes",
+    "resp_bytes",
+    "orig_pkts",
+    "resp_pkts",
+    "orig_ip_bytes",
+    "resp_ip_bytes",
+    "missed_bytes",
+    "local_orig",
+    "local_resp",
+    "label",
+]
+
+
+def collect_header(records: Iterable[dict], target_logs: Sequence[str] | None = None) -> List[str]:
     seen = set()
     header: List[str] = []
     for record in records:
@@ -129,6 +146,11 @@ def collect_header(records: Iterable[dict]) -> List[str]:
             if normalized_key not in seen:
                 seen.add(normalized_key)
                 header.append(normalized_key)
+    if target_logs and "conn.log" in target_logs:
+        for column in CONN_REQUIRED_COLUMNS:
+            if column not in seen:
+                seen.add(column)
+                header.append(column)
     if "label" not in seen:
         header.append("label")
     if not header:
@@ -228,6 +250,15 @@ def normalize_value(value):
     return value
 
 
+def resolve_csv_value(record: dict, key: str):
+    if key == "duration":
+        duration = parse_duration_seconds(record.get("duration"))
+        if duration is None:
+            return 0
+        return duration
+    return normalize_value(record.get(key, ""))
+
+
 def write_csv(
     records: Sequence[dict],
     header: Sequence[str],
@@ -252,7 +283,7 @@ def write_csv(
                 elif key == "label":
                     row[key] = label
                 else:
-                    row[key] = normalize_value(record.get(key, ""))
+                    row[key] = resolve_csv_value(record, key)
             writer.writerow(row)
 
 
@@ -288,7 +319,7 @@ def convert_log_dir(
 ) -> None:
     files = find_target_log_files(log_dir, target_logs)
     records = load_records(files)
-    header = collect_header(records)
+    header = collect_header(records, target_logs)
     write_csv(records, header, destination, network_conf)
 
 

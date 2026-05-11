@@ -124,7 +124,9 @@ A change is not done until all of the following are true:
 - `tests/unit/data_modified/test_two_csv_combine.py`
 - `tests/unit/feature_extract/test_pcap_to_log_extractor.py`
 - `tests/unit/feature_extract/test_zeek_log_to_csv_extractor.py`
-- `tests/e2e/feature_extract/test_zeek_pcap_to_csv.py`
+- `tests/e2e/feature_extract/test_zeek_tiny_golden.py`
+- `tests/e2e/feature_extract/test_zeek_scenario_golden.py`
+- `tests/e2e/feature_extract/test_zeek_bulk_golden.py`
 - `tests/e2e/runtime/test_run_smoke.py`
 - `tests/fixtures/`
 - `tests/manual/`
@@ -204,8 +206,17 @@ Prefer minimal-diff edits there. Add information without rewriting tone or struc
 
 ## 6. What CI Covers
 
-`make unit-test` runs the same unit checks as GitHub Actions.
-It performs a Python syntax pass with `compileall`, then runs the unit tests via `pytest`.
+GitHub Actions currently runs three jobs:
+
+- `unit`
+  - `make unit-test`
+- `e2e_feature_extract`
+  - `pytest tests/e2e/feature_extract -q`
+  - uses the official `zeek/zeek:8.0.5` Debian-based image
+- `e2e_runtime`
+  - `pytest tests/e2e/runtime -q`
+
+`make unit-test` performs a Python syntax pass with `compileall`, then runs the unit tests via `pytest`.
 
 Current coverage:
 - `tests/unit/data_modified/`, `tests/unit/feature_extract/` stay reserved for automated tests while `tests/manual/` stays outside the default test path
@@ -214,15 +225,23 @@ Current coverage:
 - `two_csv_combine.py` invalid daytime, empty input, non-positive chunk size, and non-empty output failure handling
 - `pcap_to_log_extractor.py` file collection, path resolution, timestamp scan, unique-dir naming, and Zeek error propagation
 - `log_to_csv_extractor.py` flow-end-based ordering and duration fallback behavior
+- `tests/e2e/feature_extract/test_zeek_pipeline_main_contract.py` wrapper layout and `daytime` contract checks
+- `tests/e2e/feature_extract/test_zeek_tiny_golden.py` tiny real `pcap -> zeek log -> csv` golden comparisons
+- `tests/e2e/feature_extract/test_zeek_scenario_golden.py` protocol-specific `dns.log` / `ssl.log` expected CSV comparisons
+- `tests/e2e/feature_extract/test_zeek_bulk_golden.py` multi-pcap batch expected CSV comparisons
+- `tests/e2e/runtime/test_run_smoke.py` minimal runtime smoke coverage
 
 CI currently does **not** cover:
-- `pcap -> zeek log`
-- runtime smoke tests
-- actual `zeek` execution
+- Legacy mode
+- long-running or large real-world datasets
+- more rigorous `make run` expectation checks beyond the smoke tests
+- dynamic mode prediction aggregation correctness
 
 Optional local coverage:
 - `make test-e2e`
-- `tests/e2e/feature_extract/test_zeek_pcap_to_csv.py` runs real `pcap -> zeek log -> csv` flows when `zeek` is installed
+- `tests/e2e/feature_extract/test_zeek_tiny_golden.py` runs tiny real `pcap -> zeek log -> csv` golden comparisons when `zeek` is installed
+- `tests/e2e/feature_extract/test_zeek_scenario_golden.py` checks protocol-specific `dns.log` / `ssl.log` CSV generation against expected CSV when `zeek` is installed
+- `tests/e2e/feature_extract/test_zeek_bulk_golden.py` checks a multi-pcap batch against expected CSV outputs when `zeek` is installed
 - `tests/e2e/runtime/test_run_smoke.py` checks that the `src/main/` runtime can process a minimal CSV and write expected output files
 
 ## 7. Recommended Commands

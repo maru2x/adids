@@ -56,12 +56,13 @@ YYYY-MM-DD HH:MM:SS
 
 本体はこの列を `datetime.strptime(..., "%Y-%m-%d %H:%M:%S")` で読む。
 
-Zeek モードの `log-to-csv` では、`daytime` は `conn.log` の `ts` をそのまま使うのではなく、原則として `ts + duration` を JST 文字列へ変換したものになる。
-つまり `daytime` は開始時刻ではなく、CSV 化されたフローが観測完了した時刻として扱う。
+Zeek モードの `log-to-csv` では、`daytime` は `conn.log` の `ts` をそのまま使うのではなく、原則として `ts + duration** を JST 文字列へ変換したものになる。
+つまり `daytime** は開始時刻ではなく、CSV 化された**フローが観測完了した時刻**として扱う。
 
 補足:
 - `duration = 0` は有効値として扱う
 - `duration` が空文字、欠落、非数値のときだけ `daytime` は `ts` ベースへフォールバックする
+- 現在の `conn.log -> csv` 変換では、`conn.log` に `duration` が無い row でも CSV 側には `duration` 列を残し、その row の値は `0` として出力する
 
 ### `label`
 
@@ -127,6 +128,10 @@ Zeek モードの `log-to-csv` が出した `conn.csv` 系を読むときに使�
 - `orig_ip_bytes`
 - `resp_ip_bytes`
 - `missed_bytes`
+
+補足:
+- `one-way` のように Zeek JSON に `orig_bytes` / `resp_bytes` が無い row でも、`conn.log` 由来 CSV では列自体は残す
+- その場合、値が空文字でも runtime 側で `0.0` として扱える
 
 それ以外で数値に変換できない場合はエラーになる。
 

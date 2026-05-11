@@ -18,6 +18,16 @@ def read_csv(path):
         return list(csv.DictReader(f))
 
 
+# Input:
+# - daytime が連続する 2 CSV と baseline
+# Expectation:
+# - 全行が baseline 起点へ平行移動される
+# - 出力ファイル名が時系列順に振り直される
+# - 入力 CSV 自体は書き換わらない
+# Target method:
+# - override_daytime()
+# Overview:
+# - 入力 CSV 群の daytime を baseline 基準へ平行移動し、時系列順で新しい CSV 群に書き直す。
 def test_override_daytime_shifts_all_rows_and_keeps_input_untouched(tmp_path):
     root = Path(tmp_path)
     input_dir = root / "input"
@@ -62,6 +72,14 @@ def test_override_daytime_shifts_all_rows_and_keeps_input_untouched(tmp_path):
     assert original_rows[0]["daytime"] == "2022-01-01 23:59:55"
 
 
+# Input:
+# - daytime 列を持たない CSV
+# Expectation:
+# - Missing 'daytime' column として ValueError
+# Target method:
+# - override_daytime()
+# Overview:
+# - 入力 CSV 群の daytime を baseline 基準へ平行移動し、時系列順で新しい CSV 群に書き直す。
 def test_override_daytime_fails_without_daytime_column(tmp_path):
     root = Path(tmp_path)
     input_dir = root / "input"

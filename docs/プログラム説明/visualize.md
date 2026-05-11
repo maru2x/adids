@@ -4,6 +4,14 @@
 
 `src/util/Visualize` は、runtime や drift analysis の結果を図表として可視化するための script 群である。
 
+現在は次の 2 層に分かれている。
+
+- `graph/`
+  - 現行の Zeek `conn` leaf CSV など、今の repository 契約に合わせて使う script
+- `legacy/`
+  - 過去の研究作業で使っていた script 群
+  - 固定 path や旧スキーマ前提が混ざるため、既存資産として退避してある
+
 このディレクトリの特徴は次の通り。
 
 - reusable な package というより、研究・論文・発表用の standalone script が多い
@@ -15,27 +23,72 @@
 
 ## `graph/`
 
-### `compare_plotter.py`
+現行の安定導線向けの script 群である。
 
-単一 CSV の複数 metric を同一グラフ上に重ねる最も基本的な line plot script である。
+前提:
 
-### `csv_basic_plotter_with_daytime.py`
+- 入力は `data/csv/.../conn/<batch_name>` のような **leaf CSV ディレクトリ**
+- `daytime` 列を持つ
+- 主に Zeek `conn.csv` 系を観測する
 
-`daytime` を横軸に取り、指定 metric を 1 枚の折れ線グラフへ出力する簡易 script である。
-変数名や一部未定義変数から、作業途中の派生版という色が強い。
+### `feature_dataset_overview.py`
 
-### `hist_plotter.py`
-
-指定した前後時間帯に分けて特徴量分布をヒストグラム化し、Wasserstein 距離も計算する大きめの script である。
+Zeek `conn` leaf CSV ディレクトリ全体の概況をまとめる script である。
 
 役割:
 
-- 複数 CSV を結合
-- 2 つの時間帯へ分割
-- 各 feature を標準化
-- before / after の histogram を保存
-- Wasserstein 距離を CSV 保存
-- さらに評価 metric の時系列グラフ上にハイライト領域を重ねる
+- ファイル数、総行数、時刻範囲を集計
+- feature ごとの欠損率、最小値、最大値、平均、標準偏差を CSV 保存
+- `label` 分布を図示
+- `daytime` の時間バケットごとの flow 数を図示
+- 各数値 feature のヒストグラムを保存
+
+巨大データを前提に、CSV を chunk 単位で読みながら処理する。
+
+### `sliding_window_feature_drift.py`
+
+Zeek `conn` leaf CSV ディレクトリについて、スライディングウィンドウの feature 分布が、基準分布からどれだけ離れるかを計測する script である。
+
+役割:
+
+- データセット全体、または指定した参照範囲を reference distribution にする
+- 一定時間幅の sliding window を流す
+- feature ごとに Wasserstein 距離と KS statistic を計算する
+- 平均 drift の時系列グラフと feature ごとの drift グラフを保存する
+
+これは旧 `exp1/tsa3.py` で行っていた「population 分布との距離観測」を、現行の leaf CSV 契約と CLI 引数ベースへ寄せたものだと考えると分かりやすい。
+
+### `zeek_conn_leaf_common.py`
+
+上の 2 script で共有する helper 群である。
+
+内容:
+
+- leaf CSV ディレクトリ探索
+- feature 解決
+- `local_orig` / `local_resp` のような真偽値列の数値化
+- plot 用サンプルの down-sampling
+
+## `legacy/`
+
+旧研究作業の script 群である。
+
+この配下には、以前 `graph/` や `exp1/` にあった観測用 script を移してある。
+たとえば:
+
+- `legacy/graph/hist_plotter.py`
+- `legacy/exp1/tsa.py`
+- `legacy/exp1/tsa2.py`
+- `legacy/exp1/tsa3.py`
+- `legacy/exp1/tsa4.py`
+
+これらは再利用価値がある一方で、次のような前提を持つことが多い。
+
+- path がコード内に固定されている
+- legacy 特徴量や過去の CSV 配置を前提にしている
+- 実験・発表の文脈に強く依存している
+
+したがって、新しく使うならまず `graph/` 側の現行 script を優先した方が安全である。
 
 ## `result/`
 
@@ -142,65 +195,14 @@ drift metric の時系列と、過去 window / 現在 window の KDE を同時�
 No Retrain / Static / Dynamic の比較と training cost plot をまとめる script である。
 `b_thesis_abs/fin.py` と近い目的だが、図の見せ方や target metric が異なる。
 
-## `exp1/`
-
-データ特性観測・分布比較・時系列解析のための script 群である。
-
-### `heatmap.py`
-
-任意 CSV を読み、ヒートマップ画像へ変換する対話型 script である。
-
-### `drift_plotter.py`
-
-drift CSV を個別に line plot へ変換する。
-
-### `drift_plotter_mean_all.py`
-
-同じ window size の `mean_dis` を複数ディレクトリ横断で 1 枚に重ねる。
-
-### `histgram.py`
-
-各ディレクトリ内の数値列分布をまとめて histogram 化する。
-ディレクトリ単位処理を `ProcessPoolExecutor` で並列化している。
-
-### `dist_compare.py`
-
-複数ディレクトリ間で feature 分布を比較し、
-
-- Wasserstein 距離
-- KL divergence
-- KS statistic
-
-を計算して行列 CSV に保存する重めの分析 script である。
-
-### `feature_importance.py`
-
-drift 指標 `mean_dis` と各 feature の相関を region / window size / feature の 3 軸で集計し、heatmap や bar chart にする。
-
-### `tsa.py`
-
-指定期間内の feature の値を時系列折れ線として出力する、最も直接的な data observation script である。
-
-### `tsa2.py`
-
-current window と past window を動かしながら、feature ごとの Wasserstein / KL / KS 距離を時間発展として求める初期版の drift 観測 script である。
-
-### `tsa3.py`
-
-population dataset を基準分布として用い、current window の feature 分布が population とどれだけ離れるかを、複数 window size について計算する。
-`w_mean_dis`, `ks_mean_dis`, `mean_dis` も後段で追加する。
-
-### `tsa4.py`
-
-`tsa3.py` に近いが、population 自体のヒストグラム作成も含み、より観測用に寄った版である。
-
 ## 読み方のコツ
 
 - `Visualize` 配下は、まずディレクトリ名で目的を当てる方が早い
-- `exp1` はデータ観測・分布比較
+- 現在の安定導線なら `graph/` を先に見る
+- `legacy/exp1` は過去のデータ観測・分布比較の蓄積として読む
 - `result`, `exp5` は実験結果比較
 - `b_thesis*`, `2025ieice_abs` は論文・発表向けの図作成
-- ほとんどの file が固定 path を直接持つため、再利用したい場合は最初に path 定数部を見るのがよい
+- `legacy/` 配下は固定 path を直接持つ file が多いため、再利用したい場合は最初に path 定数部を見るのがよい
 
 ## 補足
 

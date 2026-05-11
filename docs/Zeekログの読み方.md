@@ -226,7 +226,7 @@ Zeek 公式では `ts` は **the time of the first packet** である。
 例:
 
 ```text
-data/logs/unproc/test_region/20250513234727/conn.log
+data/logs/zeek/2201AusEast/20250513234727/conn.log
 ```
 
 ### `log_to_csv_extractor.py`

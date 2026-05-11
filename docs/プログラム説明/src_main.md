@@ -159,7 +159,7 @@ runtime の本体ロジックが最も集中しているファイルである。
 - 各行の `daytime` を見ながら session 開始・終了条件を判断する
 - `FeatureSchema` に応じて列 index を確定する
 - CSV 行から feature vector / label / label key を取り出す
-- split モードでは `LABEL_FEATURES` ごとに別モデルを持つ
+- zeek モードでは `LABEL_FEATURES` ごとに別モデルを持つ
 - 評価周期ごとに `evaluate()` を呼ぶ
 
 重要 helper:
@@ -174,9 +174,9 @@ runtime の本体ロジックが最も集中しているファイルである。
 - `_extract_label()`
   - `int(float(value))` 変換
 - `_make_label_key()`
-  - split モードのキー生成
+  - zeek モードのキー生成
 - `_get_or_create_model()`
-  - split モード時のモデル registry 管理
+  - zeek モード時のモデル registry 管理
 
 #### `StaticSession`
 
@@ -184,7 +184,7 @@ runtime の本体ロジックが最も集中しているファイルである。
 
 評価とは別に、`RETRAINING_INTERVAL` を超えたタイミングで蓄積データを `train()` に渡して再学習する。
 
-split モードでは label key ごとに別々に再学習する。
+zeek モードでは label key ごとに別々に再学習する。
 
 #### `DynamicSession`
 
@@ -212,7 +212,7 @@ runtime 全体の orchestration と結果出力を担う。
 重要点:
 
 - 出力ディレクトリ名は `<INIT_TIME>_<dataset_basename>_<mode>_<model_code>`
-- split モードでは `keys/<safe_key>/` を切る
+- zeek モードでは `keys/<safe_key>/` を切る
 - `res_eval.csv` は追加列を後段で連結して保存する
 
 ## このディレクトリを読む順番

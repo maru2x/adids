@@ -6,7 +6,7 @@
 
 現在の本体は次の2種類を扱う。
 
-- `split`: Zeek モード向け
+- `zeek`: Zeek モード向け
 - `legacy`: 旧 `pcap_to_csv_extractor.py` 向け
 
 重要:
@@ -23,7 +23,7 @@
 有効な例:
 
 ```text
-data/csv/unproc/conn/test_region/
+data/csv/zeek/conn/2201AusEast/
   20250513234727.csv
   20250513234727_01.csv
 ```
@@ -72,7 +72,7 @@ Zeek モードの `log-to-csv` では、`daytime` は `conn.log` の `ts` をそ
 - 実装上は `int(float(value))` で読まれる
 - ふつうは `0` または `1`
 
-## 2. `split` スキーマ
+## 2. `zeek` スキーマ
 
 ### 想定用途
 
@@ -184,7 +184,7 @@ daytime,label,conn_state,duration,orig_bytes,resp_bytes,orig_pkts,resp_pkts,orig
 Zeek モードを使うなら、まずは `TARGET_LOGS = ["conn.log"]` にして、次のような leaf ディレクトリを `DATASETS_DIR_PATH` に渡すのが標準。
 
 ```text
-data/csv/unproc/conn/<batch_name>
+data/csv/zeek/conn/<batch_name>
 ```
 
 ## 3. `legacy` スキーマ
@@ -249,7 +249,7 @@ Legacy 出力のヘッダは次。
 ## 5. よくあるミス
 
 - `DATASETS_DIR_PATH` に途中ディレクトリを指定する
-- `split` のまま Legacy CSV を読ませる
+- `zeek` のまま Legacy CSV を読ませる
 - `legacy` のまま Zeek `conn.csv` を読ませる
 - `TARGET_LOGS` を複数にしたのに、本体で `conn/` ではなくその親を指定する
 - `local_orig` / `local_resp` を `TRUE/FALSE` 以外の独自表記にする

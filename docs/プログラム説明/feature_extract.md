@@ -182,7 +182,7 @@ Zeek を使わず、Scapy で PCAP を読み、自前 flow 管理で CSV 特徴�
 注意点:
 
 - 現在の実装は `src/util/FeatureExtract/Legacy/settings.json` ではなく、`src/main/settings.json` を読んでいる
-- 現行 runtime の `split` スキーマとは列構成が違う
+- 現行 runtime の `zeek` スキーマとは列構成が違う
 - 実験資産として残っている旧導線であり、新規運用の主経路ではない
 
 ## どちらを優先して読むべきか

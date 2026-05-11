@@ -25,12 +25,12 @@ The most stable end-to-end flow right now is:
 2. Run `make pcap-to-log`
 3. Run `make log-to-csv`
 4. Edit `src/main/settings.json`
-5. Set `DATASETS_DIR_PATH` to a **leaf CSV directory** such as `data/csv/unproc/test_region/conn`
+5. Set `DATASETS_DIR_PATH` to a **leaf CSV directory** such as `data/csv/zeek/conn/2201AusEast`
 6. Run `make run`
 
 Important:
 - `DATASETS_DIR_PATH` must point to a directory that contains **CSV files only**
-- Do not point it at `data/csv` or `data/csv/unproc`
+- Do not point it at `data/csv`, `data/csv/zeek`, or `data/csv/zeek/conn`
 - The runtime does not recurse into nested directories
 - Synthetic validation CSVs may be kept under `data/csv/` for local verification, but they must live in a clearly named synthetic/test fixture directory so they are not confused with real datasets.
 
@@ -84,6 +84,7 @@ A change is not done until all of the following are true:
 
 - `README.md`
 - `docs/pcapファイルから特徴量を抽出する方法.md`
+- `docs/実験用データセットの作りかた.md`
 - `docs/設定ファイルの各種パラメータ.md`
 - `docs/CSVスキーマ仕様.md`
 - `docs/実験結果ファイルの見方.md`
@@ -145,24 +146,24 @@ A change is not done until all of the following are true:
 Example:
 
 ```text
-data/logs/unproc/test_region/20250513234727/conn.log
+data/logs/zeek/2201AusEast/20250513234727/conn.log
 ```
 
 `make log-to-csv` writes:
 
 ```text
-<OUTPUT_ROOT_DIR_PATH>/<batch_name>/<target_log_name>/<timestamp>.csv
+<OUTPUT_ROOT_DIR_PATH>/<target_log_name>/<batch_name>/<timestamp>.csv
 ```
 
 Example:
 
 ```text
-data/csv/unproc/test_region/conn/20250513234727.csv
+data/csv/zeek/conn/2201AusEast/20250513234727.csv
 ```
 
 ### Runtime CSV contract
 
-For `FeatureSchema.MODE = "split"`, the runtime expects:
+For `FeatureSchema.MODE = "zeek"`, the runtime expects:
 
 - `daytime`
 - `label`
@@ -179,8 +180,8 @@ The runtime opens every entry directly under `DATASETS_DIR_PATH`, so nested dirs
 
 ### Trap 1: default `make run` config can fail
 
-`src/main/settings.json` still points at `/home/mnl/adids/data/csv` by default.
-That directory contains subdirectories, so `make run` can fail with `IsADirectoryError`.
+`DATASETS_DIR_PATH` must point at a leaf CSV directory such as `data/csv/zeek/conn/2201AusEast`.
+If it points at `data/csv`, `data/csv/zeek`, or `data/csv/zeek/conn`, `make run` can fail with `IsADirectoryError`.
 
 ### Trap 2: dynamic mode + ensemble method 0
 

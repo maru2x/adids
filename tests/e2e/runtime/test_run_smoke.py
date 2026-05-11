@@ -12,7 +12,7 @@ SRC_MAIN_DIR = ROOT_DIR / "src" / "main"
 
 
 # Input:
-# - 最小 3 行の split-mode CSV fixture
+# - 最小 3 行の zeek-mode CSV fixture
 # - runtime 用 settings fixture
 # Expectation:
 # - 実行後に output dir, settings_log.json, res_eval.csv, m1_weights が生成される
@@ -130,7 +130,7 @@ def prepare_runtime_fixture(tmp_path):
         "MODEL_CODE": 4,
         "FOUNDATION_MODEL_PATH": "",
         "FeatureSchema": {
-            "MODE": "split",
+            "MODE": "zeek",
             "LABEL_COLUMN": "label",
             "LEGACY_FEATURES": [],
             "LABEL_FEATURES": ["conn_state"],

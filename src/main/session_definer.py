@@ -24,7 +24,7 @@ class NoRetrainSession:
         self.feature_indices = []
         self.label_index = None
         self.key_output_paths = {}
-        self.tr_results_list = {} if self.feature_mode == "split" else tr_results_list
+        self.tr_results_list = {} if self.feature_mode == "zeek" else tr_results_list
         self.eval_results_list = eval_results_list
         self.output_path = output_path
         self.session_start_flag = True
@@ -134,7 +134,7 @@ class NoRetrainSession:
         pass
 
     def _resolve_feature_columns(self):
-        if self.feature_mode == "split":
+        if self.feature_mode == "zeek":
             return self.feature_schema.get("VECTOR_FEATURES", [])
         if self.feature_mode == "legacy":
             return self.feature_schema.get("LEGACY_FEATURES", [])
@@ -189,7 +189,7 @@ class NoRetrainSession:
         missing = [name for name in self.feature_columns if name not in header_index]
         if missing:
             raise ValueError(f"Missing feature columns in CSV: {missing}")
-        if self.feature_mode == "split":
+        if self.feature_mode == "zeek":
             label_features = self.feature_schema.get("LABEL_FEATURES", [])
             if len(set(label_features)) != len(label_features):
                 raise ValueError("FeatureSchema LABEL_FEATURES contains duplicates.")
@@ -261,7 +261,7 @@ class NoRetrainSession:
         raise ValueError(f"Invalid boolean value: {value}")
 
     def _make_label_key(self, row):
-        if self.feature_mode != "split":
+        if self.feature_mode != "zeek":
             return "default"
         values = []
         for idx in self.label_feature_indices:
@@ -281,14 +281,14 @@ class NoRetrainSession:
         return re.sub(r"[^A-Za-z0-9._-]+", "_", key).strip("_") or "default"
 
     def _get_or_create_model(self, label_key):
-        if self.feature_mode != "split":
+        if self.feature_mode != "zeek":
             return self.model_registry["default"]
         if label_key not in self.model_registry:
             self.model_registry[label_key] = self.model_factory.create_model()
         return self.model_registry[label_key]
 
     def _get_output_dir_for_key(self, label_key, window_count=0):
-        if self.feature_mode != "split":
+        if self.feature_mode != "zeek":
             return self.output_path
         if label_key in self.key_output_paths:
             return self.key_output_paths[label_key]
@@ -304,7 +304,7 @@ class NoRetrainSession:
         return key_dir
 
     def _append_training_result(self, label_key, window_index, tr_results_array):
-        if self.feature_mode != "split":
+        if self.feature_mode != "zeek":
             while len(self.tr_results_list) <= window_index:
                 self.tr_results_list.append([])
             self.tr_results_list[window_index].append(tr_results_array)
@@ -375,7 +375,7 @@ class DynamicSession(NoRetrainSession):
         self.window_managers[label_key].update_all(features + [label], self.current_time)
 
     def _get_or_create_window_manager(self, label_key):
-        if self.feature_mode != "split":
+        if self.feature_mode != "zeek":
             return self.default_wm
         if label_key not in self.window_managers:
             model = self._get_or_create_model(label_key)
@@ -396,12 +396,12 @@ class DynamicSession(NoRetrainSession):
 class StaticSession(NoRetrainSession):
     def __init__(self, loader, model_factory, tr_results_list, eval_results_list, output_path):
         super().__init__(loader, model_factory, tr_results_list, eval_results_list, output_path)
-        self.rtr_list = {} if self.feature_mode == "split" else []
+        self.rtr_list = {} if self.feature_mode == "zeek" else []
 
     def _retrain_if_needed(self, features, label, label_key):
         if self.current_time > self.next_rtr_date:
             with tf.device("/GPU:0"):
-                if self.feature_mode == "split":
+                if self.feature_mode == "zeek":
                     for key, rows in list(self.rtr_list.items()):
                         if not rows:
                             continue
@@ -423,7 +423,7 @@ class StaticSession(NoRetrainSession):
                         self.tr_results_list.append([])
                     self.tr_results_list[0].append(tr_results_array)
             self.next_rtr_date += timedelta(seconds=self.rtr_int)
-        if self.feature_mode == "split":
+        if self.feature_mode == "zeek":
             self.rtr_list.setdefault(label_key, []).append(np.array(features + [label], dtype=float))
         else:
             self.rtr_list.append(np.array(features + [label], dtype=float))

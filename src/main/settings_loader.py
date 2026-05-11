@@ -30,7 +30,7 @@ class SettingsLoader:
     def resolve_input_dim(self):
         feature_schema = self.settings.get("FeatureSchema", {})
         mode = feature_schema.get("MODE", "legacy")
-        if mode == "split":
+        if mode == "zeek":
             features = feature_schema.get("VECTOR_FEATURES", [])
         elif mode == "legacy":
             features = feature_schema.get("LEGACY_FEATURES", [])

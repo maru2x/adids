@@ -8,7 +8,7 @@
     "MODEL_CODE" : 0,
     "FOUNDATION_MODEL_PATH": "",
     "FeatureSchema": {
-        "MODE": "split",
+        "MODE": "zeek",
         "LABEL_COLUMN": "label",
         "LEGACY_FEATURES": [
             "rcv_packet_count",

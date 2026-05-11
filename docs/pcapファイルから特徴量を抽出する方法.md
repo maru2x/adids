@@ -18,7 +18,7 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` 
 各種設定は `src/util/FeatureExtract/Legacy/settings.json` で行う。
 `TRAFFIC_DATA_PATH` に指定したpcapファイル、もしくはpcapファイルを含むディレクトリを入力として `pcap -> csv` を直接実行する。
 出力先は `data/csv/unproc/<init_time>-<input_name>/` 配下となる。
-ただし、Legacyモードの特徴量は現行の `split` スキーマとは列構成が異なるため、そのまま `Simulation` 本体へ入力する場合は `src/main/settings.json` 側の想定列と一致しているか確認が必要。
+ただし、Legacyモードの特徴量は現行の `zeek` スキーマとは列構成が異なるため、そのまま `Simulation` 本体へ入力する場合は `src/main/settings.json` 側の想定列と一致しているか確認が必要。
 
 ## Zeekモード
 
@@ -117,7 +117,7 @@ make log-to-csv
 入力:
 
 ```text
-data/pcap/202304/
+data/pcap/2201AusEast/
 ```
 
 コマンド:
@@ -129,7 +129,7 @@ make pcap-to-log
 出力:
 
 ```text
-data/logs/unproc/202304/
+data/logs/zeek/2201AusEast/
   20230401000000/
     conn.log
     dns.log
@@ -147,7 +147,7 @@ data/logs/unproc/202304/
 入力:
 
 ```text
-data/logs/unproc/202304/
+data/logs/zeek/2201AusEast/
   20230401000000/
   20230401010000/
 ```
@@ -161,9 +161,9 @@ make log-to-csv
 出力:
 
 ```text
-data/csv/unproc/
+data/csv/zeek/
   conn/
-    202304/
+    2201AusEast/
       20230401000000.csv
       20230401010000.csv
 ```
@@ -173,7 +173,7 @@ data/csv/unproc/
 入力:
 
 ```text
-data/logs/unproc/202304/20230401000000/
+data/logs/zeek/2201AusEast/20230401000000/
 ```
 
 コマンド:
@@ -185,9 +185,9 @@ make log-to-csv
 出力:
 
 ```text
-data/csv/unproc/
+data/csv/zeek/
   conn/
-    202304/
+    2201AusEast/
       20230401000000.csv
 ```
 

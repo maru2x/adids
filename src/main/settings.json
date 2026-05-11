@@ -42,7 +42,7 @@
             "local_resp"
         ]
     },
-    "DATASETS_DIR_PATH": "/home/shu-murase/adids/data/csv/zeek/2201Lab04/conn/",
+    "DATASETS_DIR_PATH": "/home/shu-murase/adids/data/csv/zeek/conn/2201Lab04/",
     "SESSION_START_DATE": "2021-12-28 03:25:22",
     "TargetRange": {
         "DAYS": 1,

@@ -63,10 +63,8 @@ def test_full_pipeline_main_matches_scenario_golden_csv(tmp_path, monkeypatch, c
         target_logs=case["target_logs"],
         network_conf=DEFAULT_NETWORK_CONF,
     )
-    batch_name = input_dir.name
-
     for output_dir_name, expected_name in case["expected_by_output_dir"].items():
-        actual_dir = csv_output_root / batch_name / output_dir_name
+        actual_dir = csv_output_root / output_dir_name / input_dir.name
         actual_files = sorted(actual_dir.glob("*.csv"))
         assert len(actual_files) == 1
         expected_path = FIXTURE_DIR / "expected_csv" / expected_name

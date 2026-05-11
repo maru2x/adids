@@ -1,10 +1,10 @@
 {
   "PcapToLog": {
-      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/pcap/202201/2201AusEast/",
-      "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/202201/"
+      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/pcap/2201AusEast/",
+      "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/"
   },
   "LogToCsv": {
-      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/202201/2201AusEast/",
+      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/2201AusEast/",
       "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/csv/zeek/",
       "TARGET_LOGS": [
           "conn.log"

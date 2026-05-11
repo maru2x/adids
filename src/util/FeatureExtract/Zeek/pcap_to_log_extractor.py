@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -16,6 +17,16 @@ JST = timezone(timedelta(hours=9))
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[3]
 SETTINGS_PATH = SCRIPT_DIR / "settings.json"
+
+
+@dataclass
+class ZeekRunError(Exception):
+    pcap_file: Path
+    returncode: int
+    stderr: str
+
+    def __str__(self) -> str:
+        return format_zeek_failure(self.pcap_file, self.returncode, self.stderr)
 
 
 def parse_args() -> argparse.Namespace:
@@ -120,17 +131,28 @@ def make_unique_dir(path: Path) -> Path:
         suffix += 1
 
 
+def format_zeek_failure(pcap_file: Path, returncode: int, stderr: str) -> str:
+    detail = stderr.strip() or "no stderr captured"
+    return f"zeek failed for {pcap_file} (exit {returncode}): {detail}"
+
+
 def run_zeek(pcap_file: Path, output_dir: Path) -> None:
     try:
         subprocess.run(
             ["zeek", "-r", str(pcap_file), "LogAscii::use_json=T"],
             cwd=output_dir,
             check=True,
+            capture_output=True,
+            text=True,
         )
     except FileNotFoundError as exc:
         raise SystemExit("zeek command not found.") from exc
     except subprocess.CalledProcessError as exc:
-        raise SystemExit(f"zeek failed for {pcap_file}: {exc}") from exc
+        raise ZeekRunError(
+            pcap_file=pcap_file,
+            returncode=exc.returncode,
+            stderr=exc.stderr or "",
+        ) from exc
 
 
 def main() -> None:
@@ -138,6 +160,8 @@ def main() -> None:
     settings = load_settings()
     input_path, output_root = resolve_config(settings)
     pcap_files = collect_pcap_files(input_path)
+    failures: list[ZeekRunError] = []
+    success_count = 0
 
     if output_root.exists() and not output_root.is_dir():
         raise SystemExit(f"Output root exists and is not a directory: {output_root}")
@@ -160,11 +184,26 @@ def main() -> None:
             output_name = ts_to_name(read_first_ts(tmp_dir), pcap_file.stem)
             final_dir = make_unique_dir(batch_dir / output_name)
             tmp_dir.rename(final_dir)
+        except ZeekRunError as exc:
+            failures.append(exc)
+            if tmp_dir.exists():
+                shutil.rmtree(tmp_dir)
+            continue
         except BaseException:
             if tmp_dir.exists():
                 shutil.rmtree(tmp_dir)
             raise
+        success_count += 1
         print(f"{pcap_file} -> {final_dir}")
+
+    if failures:
+        print(
+            f"warning: skipped {len(failures)} failed PCAP file(s); "
+            f"succeeded: {success_count}",
+            file=sys.stderr,
+        )
+        for failure in failures:
+            print(f"warning: {failure}", file=sys.stderr)
 
     print(batch_dir)
 

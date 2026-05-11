@@ -23,7 +23,7 @@
 有効な例:
 
 ```text
-data/csv/unproc/test_region/conn/
+data/csv/unproc/conn/test_region/
   20250513234727.csv
   20250513234727_01.csv
 ```
@@ -184,7 +184,7 @@ daytime,label,conn_state,duration,orig_bytes,resp_bytes,orig_pkts,resp_pkts,orig
 Zeek モードを使うなら、まずは `TARGET_LOGS = ["conn.log"]` にして、次のような leaf ディレクトリを `DATASETS_DIR_PATH` に渡すのが標準。
 
 ```text
-data/csv/unproc/<batch_name>/conn
+data/csv/unproc/conn/<batch_name>
 ```
 
 ## 3. `legacy` スキーマ

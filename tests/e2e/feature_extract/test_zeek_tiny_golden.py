@@ -95,7 +95,7 @@ def test_full_pipeline_main_matches_tiny_golden_csv(tmp_path, monkeypatch, case)
         target_logs=["conn.log"],
         network_conf=case["network_conf"],
     )
-    csv_dir = csv_output_root / input_dir.name / "conn"
+    csv_dir = csv_output_root / "conn" / input_dir.name
     csv_files = sorted(csv_dir.glob("*.csv"))
     assert len(csv_files) == 1
 

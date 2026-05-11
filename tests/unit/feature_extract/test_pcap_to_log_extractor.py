@@ -79,6 +79,23 @@ def test_resolve_repo_path_uses_project_root_for_relative_paths(monkeypatch, tmp
     assert resolved == (root / "data/pcap/sample").resolve()
 
 
+def test_resolve_config_returns_input_and_output_paths(monkeypatch, tmp_path):
+    root = Path(tmp_path)
+    monkeypatch.setattr(extractor, "PROJECT_ROOT", root)
+
+    input_path, output_root = extractor.resolve_config(
+        {
+            "PcapToLog": {
+                "INPUT_DIR_PATH": "data/pcap/sample",
+                "OUTPUT_ROOT_DIR_PATH": "data/logs/sample",
+            }
+        }
+    )
+
+    assert input_path == (root / "data/pcap/sample").resolve()
+    assert output_root == (root / "data/logs/sample").resolve()
+
+
 # Input:
 # - ts の順序が逆転している log dir
 # Expectation:
@@ -143,18 +160,59 @@ def test_run_zeek_reports_missing_command(monkeypatch, tmp_path):
 # Input:
 # - subprocess.run が CalledProcessError を投げる zeek 実行
 # Expectation:
-# - zeek failed for として SystemExit
+# - stderr を含む ZeekRunError が送出される
 # Target method:
 # - run_zeek()
 # Overview:
 # - zeek コマンドを外部実行し、指定ディレクトリに JSON log を生成させる wrapper。
 # Note:
-# - wrapper が外部コマンド失敗を握り潰さないことを確認する。
+# - wrapper が外部コマンド失敗の詳細を落とさないことを確認する。
 def test_run_zeek_reports_called_process_error(monkeypatch, tmp_path):
     def raise_called_process_error(*args, **kwargs):
-        raise subprocess.CalledProcessError(1, ["zeek"])
+        raise subprocess.CalledProcessError(1, ["zeek"], stderr="truncated dump file")
 
     monkeypatch.setattr(extractor.subprocess, "run", raise_called_process_error)
 
-    with pytest.raises(SystemExit, match="zeek failed for"):
+    with pytest.raises(extractor.ZeekRunError, match="truncated dump file"):
         extractor.run_zeek(Path(tmp_path) / "sample.pcap", Path(tmp_path))
+
+
+def test_main_skips_failed_pcap_and_continues(tmp_path, monkeypatch, capsys):
+    input_dir = Path(tmp_path) / "pcap" / "sample_batch"
+    input_dir.mkdir(parents=True)
+    bad_pcap = input_dir / "bad.pcap"
+    good_pcap = input_dir / "good.pcap"
+    bad_pcap.write_bytes(b"bad")
+    good_pcap.write_bytes(b"good")
+    output_root = Path(tmp_path) / "logs"
+
+    monkeypatch.setattr(extractor, "parse_args", lambda: None)
+    monkeypatch.setattr(
+        extractor,
+        "load_settings",
+        lambda: {
+            "PcapToLog": {
+                "INPUT_DIR_PATH": str(input_dir),
+                "OUTPUT_ROOT_DIR_PATH": str(output_root),
+            }
+        },
+    )
+
+    def fake_run_zeek(pcap_file, output_dir):
+        if pcap_file.name == "bad.pcap":
+            raise extractor.ZeekRunError(pcap_file, 1, "truncated dump file")
+        (output_dir / "conn.log").write_text('{"ts": 1640995200}\n', encoding="utf-8")
+
+    monkeypatch.setattr(extractor, "run_zeek", fake_run_zeek)
+
+    extractor.main()
+
+    batch_dir = output_root / input_dir.name
+    assert (batch_dir / "20220101090000" / "conn.log").is_file()
+    assert not any(path.name.startswith(".tmp_") for path in batch_dir.iterdir())
+
+    captured = capsys.readouterr()
+    assert "skipped 1 failed PCAP file" in captured.err
+    assert str(bad_pcap) in captured.err
+    assert "truncated dump file" in captured.err
+    assert str(batch_dir) in captured.out

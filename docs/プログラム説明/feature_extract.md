@@ -44,6 +44,7 @@ Zeek 実行ラッパーであり、`settings.json` に基づいて PCAP 群を Z
 - `zeek -r ... LogAscii::use_json=T` の呼び出し
 - log 内最小 `ts` に基づくディレクトリ命名
 - 一時ディレクトリ運用と cleanup
+- 失敗した PCAP のスキップと終了時サマリ
 
 ### `log_to_csv_extractor.py`
 
@@ -53,7 +54,7 @@ Zeek の JSON Lines log を runtime 用 CSV へ変換するファイルである
 
 - `settings.json` から対象 log と network 定義を読む
 - 単一 log dir と batch dir の両方を受ける
-- `TARGET_LOGS` ごとに出力ディレクトリを分ける
+- `TARGET_LOGS` ごとに出力ディレクトリを分け、`<target_log>/<batch_name>` の順で配置する
 - `conn.log` などのレコードを JSON として読む
 - `ts + duration` を基準に flow end time を計算する
 - `daytime` を JST 文字列として出力する

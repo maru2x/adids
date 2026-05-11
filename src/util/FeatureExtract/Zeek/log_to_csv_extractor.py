@@ -332,12 +332,9 @@ def main() -> None:
         raise SystemExit(f"Output root exists and is not a directory: {output_root}")
 
     log_dirs, batch_name = discover_log_dirs(input_path, target_logs)
-    output_dir = output_root / batch_name
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     created_output_dirs: list[Path] = []
     for target_log in target_logs:
-        target_output_dir = output_dir / target_output_dir_name(target_log)
+        target_output_dir = output_root / target_output_dir_name(target_log) / batch_name
         target_output_dir.mkdir(parents=True, exist_ok=True)
         created_output_dirs.append(target_output_dir)
         for log_dir in log_dirs:

@@ -9,6 +9,7 @@
 ## 全体像
 
 - 入力は `settings.json` の `PcapToLog.INPUT_DIR_PATH` と `PcapToLog.OUTPUT_ROOT_DIR_PATH`
+- Zeek 失敗時はその PCAP をスキップし、最後に失敗一覧をサマリ表示する
 - 入力ディレクトリ配下の `.pcap` / `.pcapng` を**再帰的**に集める
 - 各 PCAP ごとに一時ディレクトリ `.tmp_XXXX_<stem>` を作り、その中で `zeek` を実行する
 - 生成された `.log` の中から最小 `ts` を読み、その JST 時刻を最終ディレクトリ名にする
@@ -121,10 +122,10 @@ zeek -r <pcap_file> LogAscii::use_json=T
 
 - `FileNotFoundError`
   - `zeek` コマンド自体が無い
+  - `SystemExit` にして止める
 - `CalledProcessError`
   - Zeek が非 0 終了した
-
-どちらも `SystemExit` に包んで上位へ返す。
+  - stderr を保持した `ZeekRunError` に包む
 
 ### `main()`
 
@@ -138,13 +139,16 @@ zeek -r <pcap_file> LogAscii::use_json=T
 6. 各 PCAP について `.tmp_0001_<stem>` のような一時ディレクトリを作り、その中で `run_zeek()`
 7. Zeek 出力後 `read_first_ts()` で最小 `ts` を取り、`ts_to_name()` で最終ディレクトリ名を決める
 8. `make_unique_dir()` で衝突回避したあと、一時ディレクトリを `rename` して完成
-9. 失敗時は `.tmp_*` を `shutil.rmtree()` で掃除して再 raise
-10. 最後に `"<pcap> -> <final_dir>"` を各件表示し、最後の 1 行で `batch_dir` を表示する
+9. `ZeekRunError` なら `.tmp_*` を掃除した上で、その PCAP を失敗一覧に追加して続行する
+10. その他の失敗時は `.tmp_*` を `shutil.rmtree()` で掃除して再 raise
+11. 失敗 PCAP があれば、実行終了時にパスと失敗理由を stderr にまとめて表示する
+12. 最後に `"<pcap> -> <final_dir>"` を各件表示し、最後の 1 行で `batch_dir` を表示する
 
 補足:
 
 - `batch_dir` が既にある場合は stderr に warning を出すだけで続行する
 - 既存成果物を壊さないため、最終ディレクトリ名は衝突回避される
+- 壊れた PCAP に当たっても他の PCAP の処理を継続する
 
 ## このファイルの実質的な責務
 

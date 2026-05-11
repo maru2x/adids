@@ -93,25 +93,25 @@ logs/
 
 出力:
 csv/
-└─ sample_batch/
-   └─ conn/
+└─ conn/
+   └─ sample_batch/
       └─ 20220101090000.csv
 ```
 
 ここで重要なのは、次の 3 点である。
 
-- `sample_batch`
-  - `pcap -> log` で作られた batch 名がそのまま引き継がれる
 - `conn`
-  - `TARGET_LOGS = ["conn.log"]` のように、対象 log 名ごとに CSV ディレクトリが分かれる
+  - `TARGET_LOGS = ["conn.log"]` のように、対象 log 名ごとに最上位ディレクトリが分かれる
+- `sample_batch`
+  - `pcap -> log` で作られた batch 名がそのままその下のディレクトリ名に使われる
 - `20220101090000.csv`
   - 元の log ディレクトリ名が、そのまま CSV ファイル名になる
 
 具体的には、次を確認する。
 
-- `<csv_root>/<batch>/<target_log>/<timestamp>.csv` の形で出力されること
+- `<csv_root>/<target_log>/<batch>/<timestamp>.csv` の形で出力されること
 - `DATASETS_DIR_PATH` に直接渡せる leaf CSV ディレクトリになっていること
-- `conn.log` から `conn/20220101090000.csv` のように `target_log` ごとに整理されること
+- `conn.log` から `conn/sample_batch/20220101090000.csv` のように `target_log` ごとに整理されること
 
 ここで見ているのは、CSV の値の厳密一致よりも、runtime に接続するためのレイアウト契約が守られているかである。
 

@@ -61,6 +61,8 @@ python3 src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py data/pcap/test
 このコマンドでは、入力されたディレクトリ配下の `.pcap` / `.pcapng` ファイルを再帰的に収集して処理する。
 設定した `PcapToLog.OUTPUT_ROOT_DIR_PATH` の下に、入力ディレクトリ名と同じ名前のディレクトリを作成し、各pcapファイルごとに `zeek -r <pcap> LogAscii::use_json=T` を実行する。
 生成された `.log` の最初の `ts` を使って、各ログディレクトリ名を `YYYYMMDDHHMMSS` にする。
+壊れたpcapファイルや途中で欠損したpcapファイルに当たって Zeek が失敗した場合は、そのpcapだけを飛ばして残りの処理を継続する。
+実行終了後に、欠損していたpcapファイルのパスと失敗理由を stderr のサマリに出す。
 
 実行例：
 ```
@@ -91,7 +93,7 @@ data/zeek/
 
 設定項目：
 - `LogToCsv.INPUT_DIR_PATH`: CSVに変換したいログバッチディレクトリ、もしくは単一ログディレクトリを指定する。
-- `LogToCsv.OUTPUT_ROOT_DIR_PATH`: 変換後のcsvファイルの出力ルートを指定する。実際の出力先は `OUTPUT_ROOT_DIR_PATH/<batch_name>/<target_log_name>/` となる。
+- `LogToCsv.OUTPUT_ROOT_DIR_PATH`: 変換後のcsvファイルの出力ルートを指定する。実際の出力先は `OUTPUT_ROOT_DIR_PATH/<target_log_name>/<batch_name>/` となる。
 - `LogToCsv.TARGET_LOGS`: CSV化の対象にするログファイル名を配列で指定する。`["conn.log"]` のように1件でも複数件でもよい。
 - `LogToCsv.NETWORK_KEY`: 同じ設定ファイル内の `NetworkAddress` から参照するキーを指定する。
 
@@ -103,7 +105,7 @@ make log-to-csv
 
 このコマンドでは、入力が単一ログディレクトリならその1件をCSVにし、入力がログバッチディレクトリなら配下の各ログディレクトリをまとめてCSV化する。
 `TARGET_LOGS` に複数のログファイル名を指定した場合は、ログ種別ごとにディレクトリを分けてCSVを出力する。単一指定でも同じ構造に揃える。
-出力先は `OUTPUT_ROOT_DIR_PATH/<batch_name>/<target_log_name>/` に揃えられる。`target_log_name` には `conn.log` なら `conn` のように拡張子を除いた名前を使う。
+出力先は `OUTPUT_ROOT_DIR_PATH/<target_log_name>/<batch_name>/` に揃えられる。`target_log_name` には `conn.log` なら `conn` のように拡張子を除いた名前を使う。
 また、Zeek の `conn.log` にある `ts` は開始時刻なので、そのままでは CSV 上で時系列が逆転しうる。
 そのため現在の `log-to-csv` では、CSV の `daytime` を原則 `ts + duration` から作り、その値で昇順に並べて出力する。
 `duration = 0` は有効値として扱い、`duration` が空文字・欠落・非数値のときだけ `ts` ベースへフォールバックする。
@@ -159,10 +161,11 @@ make log-to-csv
 出力:
 
 ```text
-data/csv/unproc/202304/
+data/csv/unproc/
   conn/
-    20230401000000.csv
-    20230401010000.csv
+    202304/
+      20230401000000.csv
+      20230401010000.csv
 ```
 
 ### 3. 単一ログディレクトリを入力して CSV 化する場合
@@ -182,9 +185,10 @@ make log-to-csv
 出力:
 
 ```text
-data/csv/unproc/202304/
+data/csv/unproc/
   conn/
-    20230401000000.csv
+    202304/
+      20230401000000.csv
 ```
 
 単一ログディレクトリでも、親ディレクトリ名がバッチ名として使われます。

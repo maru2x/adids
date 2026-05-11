@@ -57,10 +57,8 @@ def test_full_pipeline_main_matches_bulk_golden_csv(tmp_path, monkeypatch):
         target_logs=["conn.log", "dns.log", "ssl.log"],
         network_conf=BULK_NETWORK_CONF,
     )
-    batch_name = input_dir.name
-
     for output_dir_name, expected_files in BULK_EXPECTED.items():
-        actual_dir = csv_output_root / batch_name / output_dir_name
+        actual_dir = csv_output_root / output_dir_name / input_dir.name
         actual_files = sorted(path.name for path in actual_dir.glob("*.csv"))
         assert actual_files == sorted(expected_files.keys())
         for actual_name, expected_name in expected_files.items():

@@ -95,7 +95,7 @@ logs/
 csv/
 └─ conn/
    └─ sample_batch/
-      └─ 20220101090000.csv
+      └─ 00000_20220101090001.csv
 ```
 
 ここで重要なのは、次の 3 点である。
@@ -104,14 +104,14 @@ csv/
   - `TARGET_LOGS = ["conn.log"]` のように、対象 log 名ごとに最上位ディレクトリが分かれる
 - `sample_batch`
   - `pcap -> log` で作られた batch 名がそのままその下のディレクトリ名に使われる
-- `20220101090000.csv`
-  - 元の log ディレクトリ名が、そのまま CSV ファイル名になる
+- `00000_20220101090001.csv`
+  - batch 全体を `daytime` で再統合したあと、連番 + 先頭 row の `daytime` を使って chunk 名が付く
 
 具体的には、次を確認する。
 
-- `<csv_root>/<target_log>/<batch>/<timestamp>.csv` の形で出力されること
+- `<csv_root>/<target_log>/<batch>/<chunk_index>_<first_daytime>.csv` の形で出力されること
 - `DATASETS_DIR_PATH` に直接渡せる leaf CSV ディレクトリになっていること
-- `conn.log` から `conn/sample_batch/20220101090000.csv` のように `target_log` ごとに整理されること
+- `conn.log` から `conn/sample_batch/00000_20220101090001.csv` のように `target_log` ごとに整理されること
 
 ここで見ているのは、CSV の値の厳密一致よりも、runtime に接続するためのレイアウト契約が守られているかである。
 
@@ -159,7 +159,7 @@ fixture ごとの `raw pcap` と `expected csv` の詳細は、用途ごとに�
 - `expected_csv` に書かれた列値が一致すること
 - `expected_csv` に含めた header subset が最終 CSV に存在すること
 - 併せて runtime が読むための最低限の列契約も満たすこと
-- `EXCEPTION` fixture では header-only CSV が期待通りに生成されること
+- `EXCEPTION` fixture のように全行が除外されるケースでは、空 CSV を作らず失敗すること
 
 このテストは、fixture ベースの厳密比較に近い。そのため回帰検知には有効だが、`zeek` のバージョン差によって壊れやすいという性質も持つ。
 

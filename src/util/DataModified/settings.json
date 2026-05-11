@@ -9,5 +9,13 @@
     "INPUT_DIR": "data/csv/unproc/conn/malicious",
     "OUTPUT_DIR": "data/csv/modif/malicious_shifted/conn",
     "BASELINE": "2022-01-01 09:03:59"
+  },
+  "AlignMix": {
+    "INPUT_DIR_A": "data/csv/unproc/conn/benign",
+    "INPUT_DIR_B": "data/csv/unproc/conn/malicious",
+    "ALIGN_TO": "A",
+    "SHIFTED_OUTPUT_DIR": "data/csv/modif/malicious_shifted/conn",
+    "OUTPUT_DIR": "data/csv/modif/mixed/conn",
+    "CHUNK_SIZE": 3000
   }
 }

@@ -98,7 +98,7 @@ def test_pcap_to_log_main_creates_timestamped_log_dir(tmp_path, monkeypatch):
 # - roundtrip.pcap を 1 件だけ含む sample_batch
 # - temp settings 経由で pcap_to_log_extractor.main() と log_to_csv_extractor.main() を順に実行
 # Expectation:
-# - <csv_output_root>/conn/<batch_name>/<timestamp>.csv が作られる
+# - <csv_output_root>/conn/<batch_name>/00000_<first_daytime>.csv が作られる
 # - CSV row の daytime は flow end time 由来で 2022-01-01 09:00:01 になる
 # - rows は daytime 昇順で label は数値化可能
 # Target script:
@@ -124,7 +124,7 @@ def test_full_pipeline_main_creates_leaf_csv_output_with_flow_end_daytime(tmp_pa
     assert (batch_dir / "20220101090000" / "conn.log").is_file()
 
     csv_dir = csv_output_root / "conn" / input_dir.name
-    csv_path = csv_dir / "20220101090000.csv"
+    csv_path = csv_dir / "00000_20220101090001.csv"
     assert csv_dir.is_dir()
     assert csv_path.is_file()
 
@@ -139,8 +139,9 @@ def test_full_pipeline_main_creates_leaf_csv_output_with_flow_end_daytime(tmp_pa
 # - 同一 batch に roundtrip.pcap と two_roundtrips.pcap を置く
 # - temp settings 経由で pcap_to_log_extractor.main() と log_to_csv_extractor.main() を順に実行
 # Expectation:
-# - log dir と csv dir の両方に timestamp ベースの成果物が 2 件できる
-# - それぞれの CSV は元 pcap に応じて 1 行と 2 行を持つ
+# - log dir は 2 件できる
+# - csv dir は batch 全体を daytime で再統合した 1 件以上の chunk として出力される
+# - 最終 CSV 群を連結すると row 全体が daytime 昇順になる
 # Target script:
 # - pcap_to_log_extractor.main()
 # - log_to_csv_extractor.main()
@@ -164,9 +165,12 @@ def test_full_pipeline_main_handles_multiple_pcaps_in_one_batch(tmp_path, monkey
 
     csv_dir = csv_output_root / "conn" / input_dir.name
     csv_files = sorted(csv_dir.glob("*.csv"))
-    assert [path.name for path in csv_files] == ["20220101090000.csv", "20220101090200.csv"]
+    assert [path.name for path in csv_files] == ["00000_20220101090001.csv"]
 
-    first_rows = read_csv_rows(csv_files[0])
-    second_rows = read_csv_rows(csv_files[1])
-    assert len(first_rows) == 1
-    assert len(second_rows) == 2
+    rows = read_csv_rows(csv_files[0])
+    assert len(rows) == 3
+    assert [row["daytime"] for row in rows] == [
+        "2022-01-01 09:00:01",
+        "2022-01-01 09:02:01",
+        "2022-01-01 09:02:12",
+    ]

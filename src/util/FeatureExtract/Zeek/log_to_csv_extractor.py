@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import heapq
 import ipaddress
 import json
+import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Iterator, List, Sequence
@@ -16,6 +18,10 @@ JST = timezone(timedelta(hours=9))
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[3]
 SETTINGS_PATH = SCRIPT_DIR / "settings.json"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DEFAULT_OUTPUT_CHUNK_SIZE = 3000
+DEFAULT_RUN_ROW_LIMIT = 100000
+DEFAULT_MERGE_FAN_IN = 256
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,7 +75,37 @@ def resolve_network_config(settings: dict, network_key: str) -> dict:
     return network_conf
 
 
-def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict]:
+def resolve_output_chunk_size(value: object) -> int:
+    if value is None:
+        return DEFAULT_OUTPUT_CHUNK_SIZE
+    if isinstance(value, bool):
+        raise SystemExit(f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {SETTINGS_PATH}")
+    try:
+        chunk_size = int(value)
+    except (TypeError, ValueError) as exc:
+        raise SystemExit(
+            f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {SETTINGS_PATH}"
+        ) from exc
+    if chunk_size <= 0:
+        raise SystemExit(f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {SETTINGS_PATH}")
+    return chunk_size
+
+
+def resolve_positive_int(value: object, *, field_name: str, default: int) -> int:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        raise SystemExit(f"{field_name} must be a positive integer in {SETTINGS_PATH}")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise SystemExit(f"{field_name} must be a positive integer in {SETTINGS_PATH}") from exc
+    if parsed <= 0:
+        raise SystemExit(f"{field_name} must be a positive integer in {SETTINGS_PATH}")
+    return parsed
+
+
+def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict, int, int, int]:
     section = settings.get("LogToCsv")
     if not isinstance(section, dict):
         raise SystemExit(f"LogToCsv section not found in {SETTINGS_PATH}")
@@ -83,7 +119,20 @@ def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict]:
     if not isinstance(network_key, str) or not network_key.strip():
         raise SystemExit(f"LogToCsv.NETWORK_KEY is required in {SETTINGS_PATH}")
     network_conf = resolve_network_config(settings, network_key.strip())
-    return input_path, output_root, target_logs, network_conf
+    output_chunk_size = resolve_output_chunk_size(section.get("OUTPUT_CHUNK_SIZE"))
+    run_row_limit = resolve_positive_int(
+        section.get("RUN_ROW_LIMIT"),
+        field_name="LogToCsv.RUN_ROW_LIMIT",
+        default=DEFAULT_RUN_ROW_LIMIT,
+    )
+    merge_fan_in = resolve_positive_int(
+        section.get("MERGE_FAN_IN"),
+        field_name="LogToCsv.MERGE_FAN_IN",
+        default=DEFAULT_MERGE_FAN_IN,
+    )
+    if merge_fan_in < 2:
+        raise SystemExit(f"LogToCsv.MERGE_FAN_IN must be at least 2 in {SETTINGS_PATH}")
+    return input_path, output_root, target_logs, network_conf, output_chunk_size, run_row_limit, merge_fan_in
 
 
 def find_target_log_files(log_dir: Path, target_logs: Sequence[str]) -> List[Path]:
@@ -116,10 +165,6 @@ def iter_records(files: Sequence[Path]) -> Iterator[dict]:
                     ) from exc
 
 
-def load_records(files: Sequence[Path]) -> List[dict]:
-    return list(iter_records(files))
-
-
 CONN_REQUIRED_COLUMNS = [
     "daytime",
     "conn_state",
@@ -137,22 +182,38 @@ CONN_REQUIRED_COLUMNS = [
 ]
 
 
-def collect_header(records: Iterable[dict], target_logs: Sequence[str] | None = None) -> List[str]:
+def collect_record_header(record: dict) -> List[str]:
     seen = set()
     header: List[str] = []
-    for record in records:
-        for key in record.keys():
-            normalized_key = "daytime" if key == "ts" else key
-            if normalized_key not in seen:
-                seen.add(normalized_key)
-                header.append(normalized_key)
+    for key in record.keys():
+        normalized_key = "daytime" if key == "ts" else key
+        if normalized_key not in seen:
+            seen.add(normalized_key)
+            header.append(normalized_key)
+    return header
+
+
+def extend_header_for_target_logs(
+    header: Sequence[str],
+    target_logs: Sequence[str] | None = None,
+) -> List[str]:
+    extended = list(header)
+    seen = set(extended)
     if target_logs and "conn.log" in target_logs:
         for column in CONN_REQUIRED_COLUMNS:
             if column not in seen:
                 seen.add(column)
-                header.append(column)
+                extended.append(column)
     if "label" not in seen:
-        header.append("label")
+        extended.append("label")
+    return extended
+
+
+def collect_header(records: Iterable[dict], target_logs: Sequence[str] | None = None) -> List[str]:
+    header: List[str] = []
+    for record in records:
+        header = merge_headers(header, collect_record_header(record))
+    header = extend_header_for_target_logs(header, target_logs)
     if not header:
         raise SystemExit("No JSON objects were found in the provided log files.")
     return header
@@ -186,21 +247,15 @@ def resolve_flow_end_ts(record: dict) -> float | None:
     return start_ts + duration
 
 
+def has_valid_record_timestamp(record: dict) -> bool:
+    return resolve_flow_end_ts(record) is not None
+
+
 def convert_ts_to_daytime(ts: float | None) -> str:
     if ts is None:
         return ""
     utc_dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-    return utc_dt.astimezone(JST).strftime("%Y-%m-%d %H:%M:%S")
-
-
-def sort_records_by_flow_end_time(records: Sequence[dict]) -> List[dict]:
-    sortable_records = []
-    for index, record in enumerate(records):
-        flow_end_ts = resolve_flow_end_ts(record)
-        sort_key = float("inf") if flow_end_ts is None else flow_end_ts
-        sortable_records.append((sort_key, index, record))
-    sortable_records.sort(key=lambda item: (item[0], item[1]))
-    return [record for _, _, record in sortable_records]
+    return utc_dt.astimezone(JST).strftime(DATETIME_FORMAT)
 
 
 def _ip_in_any(ip_str: str, networks: Sequence[str]) -> bool:
@@ -259,32 +314,39 @@ def resolve_csv_value(record: dict, key: str):
     return normalize_value(record.get(key, ""))
 
 
-def write_csv(
-    records: Sequence[dict],
-    header: Sequence[str],
-    destination: Path,
-    network_conf: dict,
-) -> None:
-    records = sort_records_by_flow_end_time(records)
+def build_csv_row(record: dict, header: Sequence[str], network_conf: dict) -> dict | None:
+    if should_exclude_record(record, network_conf):
+        return None
+    label = assign_label(record, network_conf)
+    if label is None:
+        return None
+    row = {}
+    for key in header:
+        if key == "daytime":
+            row[key] = convert_ts_to_daytime(resolve_flow_end_ts(record))
+        elif key == "label":
+            row[key] = label
+        else:
+            row[key] = resolve_csv_value(record, key)
+    return row
+
+
+def write_rows_to_csv(rows: Sequence[dict], header: Sequence[str], destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=header, extrasaction="ignore")
         writer.writeheader()
-        for record in records:
-            if should_exclude_record(record, network_conf):
-                continue
-            label = assign_label(record, network_conf)
-            if label is None:
-                continue
-            row = {}
-            for key in header:
-                if key == "daytime":
-                    row[key] = convert_ts_to_daytime(resolve_flow_end_ts(record))
-                elif key == "label":
-                    row[key] = label
-                else:
-                    row[key] = resolve_csv_value(record, key)
-            writer.writerow(row)
+        writer.writerows(rows)
+
+
+def merge_headers(existing: list[str], new_header: Sequence[str]) -> list[str]:
+    seen = set(existing)
+    merged = list(existing)
+    for key in new_header:
+        if key not in seen:
+            seen.add(key)
+            merged.append(key)
+    return merged
 
 
 def log_dir_contains_logs(log_dir: Path, target_logs: Sequence[str]) -> bool:
@@ -311,22 +373,291 @@ def discover_log_dirs(input_path: Path, target_logs: Sequence[str]) -> tuple[lis
     return log_dirs, input_path.name
 
 
-def convert_log_dir(
-    log_dir: Path,
-    destination: Path,
-    network_conf: dict,
-    target_logs: Sequence[str],
+def parse_daytime(value: str, source_name: str) -> datetime:
+    try:
+        return datetime.strptime(value, DATETIME_FORMAT)
+    except ValueError as exc:
+        raise SystemExit(
+            f"Invalid daytime value '{value}' in {source_name}. Expected format: {DATETIME_FORMAT}"
+        ) from exc
+
+
+class CsvSequence:
+    def __init__(self, csv_path: Path):
+        self.csv_path = csv_path
+        self.file = csv_path.open("r", encoding="utf-8", newline="")
+        self.reader = csv.DictReader(self.file)
+        self.current_row: dict | None = None
+        self.current_dt: datetime | None = None
+        self.header = self.reader.fieldnames or []
+        self.exhausted = False
+        self.advance()
+
+    def close(self) -> None:
+        self.file.close()
+
+    def advance(self) -> None:
+        try:
+            row = next(self.reader)
+        except StopIteration:
+            self.current_row = None
+            self.current_dt = None
+            self.exhausted = True
+            return
+        if "daytime" not in row:
+            raise SystemExit(f"Missing 'daytime' column in {self.csv_path}")
+        self.current_row = row
+        self.current_dt = parse_daytime(row["daytime"], self.csv_path.name)
+        self.exhausted = False
+
+    def pop_current(self) -> tuple[datetime, dict]:
+        if self.current_row is None or self.current_dt is None:
+            raise StopIteration("No current row available.")
+        current_dt = self.current_dt
+        row = dict(self.current_row)
+        self.advance()
+        return current_dt, row
+
+
+def chunk_output_filename(output_index: int, first_daytime: datetime) -> str:
+    return f"{output_index:05d}_{first_daytime.strftime('%Y%m%d%H%M%S')}.csv"
+
+
+def flush_chunk_rows(
+    output_dir: Path,
+    header: Sequence[str],
+    rows: list[dict],
+    output_index: int,
+    first_daytime: datetime,
+) -> int:
+    destination = output_dir / chunk_output_filename(output_index, first_daytime)
+    write_rows_to_csv(rows, header, destination)
+    rows.clear()
+    return output_index + 1
+
+
+def push_sequence_if_available(
+    heap: list[tuple[datetime, int]],
+    sequences: Sequence[CsvSequence],
+    sequence_index: int,
 ) -> None:
-    files = find_target_log_files(log_dir, target_logs)
-    records = load_records(files)
-    header = collect_header(records, target_logs)
-    write_csv(records, header, destination, network_conf)
+    current_dt = sequences[sequence_index].current_dt
+    if current_dt is not None:
+        heapq.heappush(heap, (current_dt, sequence_index))
+
+
+def merge_sorted_csv_group_to_single_csv(
+    sorted_csv_paths: Sequence[Path],
+    destination: Path,
+    final_header: Sequence[str],
+) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    sequences = [CsvSequence(path) for path in sorted_csv_paths]
+    heap: list[tuple[datetime, int]] = []
+    try:
+        for index, _sequence in enumerate(sequences):
+            push_sequence_if_available(heap, sequences, index)
+        with destination.open("w", newline="", encoding="utf-8") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=final_header, extrasaction="ignore")
+            writer.writeheader()
+            while heap:
+                _, sequence_index = heapq.heappop(heap)
+                _, row = sequences[sequence_index].pop_current()
+                writer.writerow(row)
+                if not sequences[sequence_index].exhausted:
+                    push_sequence_if_available(heap, sequences, sequence_index)
+        return destination
+    finally:
+        for sequence in sequences:
+            sequence.close()
+
+
+def merge_sorted_csv_group_to_output_chunks(
+    sorted_csv_paths: Sequence[Path],
+    destination_dir: Path,
+    final_header: Sequence[str],
+    output_chunk_size: int,
+) -> list[Path]:
+    if not sorted_csv_paths:
+        return []
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    sequences = [CsvSequence(path) for path in sorted_csv_paths]
+    created_paths: list[Path] = []
+    heap: list[tuple[datetime, int]] = []
+    try:
+        for index, _sequence in enumerate(sequences):
+            push_sequence_if_available(heap, sequences, index)
+        output_index = 0
+        chunk_rows: list[dict] = []
+        chunk_first_daytime: datetime | None = None
+        if not heap:
+            raise SystemExit("No sorted CSV rows were available for chunk output.")
+        while heap:
+            _, sequence_index = heapq.heappop(heap)
+            current_dt, row = sequences[sequence_index].pop_current()
+            if chunk_first_daytime is None:
+                chunk_first_daytime = current_dt
+            chunk_rows.append(row)
+            if not sequences[sequence_index].exhausted:
+                push_sequence_if_available(heap, sequences, sequence_index)
+            if len(chunk_rows) >= output_chunk_size:
+                created_paths.append(
+                    destination_dir / chunk_output_filename(output_index, chunk_first_daytime)
+                )
+                output_index = flush_chunk_rows(
+                    destination_dir, final_header, chunk_rows, output_index, chunk_first_daytime
+                )
+                chunk_first_daytime = None
+        if chunk_rows:
+            if chunk_first_daytime is None:
+                raise SystemExit("Chunk output is missing its first daytime.")
+            created_paths.append(destination_dir / chunk_output_filename(output_index, chunk_first_daytime))
+            flush_chunk_rows(destination_dir, final_header, chunk_rows, output_index, chunk_first_daytime)
+        return created_paths
+    finally:
+        for sequence in sequences:
+            sequence.close()
+
+
+def sort_rows_by_daytime(rows: list[dict]) -> None:
+    rows.sort(key=lambda row: row["daytime"])
+
+
+def flush_run_rows(
+    temp_dir: Path,
+    run_rows: list[dict],
+    final_header: Sequence[str],
+    run_index: int,
+) -> tuple[Path, int]:
+    sort_rows_by_daytime(run_rows)
+    run_path = temp_dir / f"run_l0_{run_index:05d}.csv"
+    write_rows_to_csv(run_rows, final_header, run_path)
+    run_rows.clear()
+    return run_path, run_index + 1
+
+
+def create_initial_sorted_runs(
+    log_dirs: Sequence[Path],
+    temp_dir: Path,
+    network_conf: dict,
+    target_log: str,
+    run_row_limit: int,
+) -> tuple[list[Path], list[str]]:
+    final_header = extend_header_for_target_logs([], [target_log])
+    run_paths: list[Path] = []
+    run_rows: list[dict] = []
+    run_index = 0
+    matched_log_dir_count = 0
+    skipped_invalid_ts_count = 0
+    emitted_row_count = 0
+    for log_dir in log_dirs:
+        target_file = log_dir / target_log
+        if not target_file.is_file():
+            continue
+        matched_log_dir_count += 1
+        files = find_target_log_files(log_dir, [target_log])
+        for record in iter_records(files):
+            if not has_valid_record_timestamp(record):
+                skipped_invalid_ts_count += 1
+                continue
+            row_header = extend_header_for_target_logs(collect_record_header(record), [target_log])
+            final_header = merge_headers(final_header, row_header)
+            row = build_csv_row(record, row_header, network_conf)
+            if row is None:
+                continue
+            run_rows.append(row)
+            emitted_row_count += 1
+            if len(run_rows) >= run_row_limit:
+                run_path, run_index = flush_run_rows(temp_dir, run_rows, final_header, run_index)
+                run_paths.append(run_path)
+    if run_rows:
+        run_path, run_index = flush_run_rows(temp_dir, run_rows, final_header, run_index)
+        run_paths.append(run_path)
+    if matched_log_dir_count == 0:
+        raise SystemExit(f"No target logs ({target_log}) were found in the discovered log directories.")
+    if emitted_row_count == 0:
+        if skipped_invalid_ts_count > 0:
+            raise SystemExit(
+                f"No CSV rows were produced for {target_log}. "
+                f"Skipped {skipped_invalid_ts_count} records because ts/duration were missing or invalid."
+            )
+        raise SystemExit(f"No CSV rows were produced for {target_log} after filtering and labeling.")
+    return run_paths, final_header
+
+
+def merge_run_level(
+    input_paths: Sequence[Path],
+    temp_dir: Path,
+    final_header: Sequence[str],
+    merge_fan_in: int,
+    level: int,
+) -> list[Path]:
+    merged_paths: list[Path] = []
+    for group_start in range(0, len(input_paths), merge_fan_in):
+        group = input_paths[group_start : group_start + merge_fan_in]
+        destination = temp_dir / f"run_l{level}_{group_start // merge_fan_in:05d}.csv"
+        merged_paths.append(merge_sorted_csv_group_to_single_csv(group, destination, final_header))
+    return merged_paths
+
+
+def external_merge_sorted_runs_to_chunks(
+    run_paths: Sequence[Path],
+    temp_dir: Path,
+    destination_dir: Path,
+    final_header: Sequence[str],
+    output_chunk_size: int,
+    merge_fan_in: int,
+) -> list[Path]:
+    current_paths = list(run_paths)
+    level = 1
+    while len(current_paths) > merge_fan_in:
+        next_paths = merge_run_level(current_paths, temp_dir, final_header, merge_fan_in, level)
+        for old_path in current_paths:
+            old_path.unlink()
+        current_paths = next_paths
+        level += 1
+    return merge_sorted_csv_group_to_output_chunks(
+        current_paths, destination_dir, final_header, output_chunk_size
+    )
+
+
+def convert_batch_to_chunked_csv(
+    log_dirs: Sequence[Path],
+    destination_dir: Path,
+    network_conf: dict,
+    target_log: str,
+    output_chunk_size: int,
+    run_row_limit: int,
+    merge_fan_in: int,
+) -> list[Path]:
+    temp_dir = destination_dir.parent / f".tmp_log_to_csv_{destination_dir.name}"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        run_paths, final_header = create_initial_sorted_runs(
+            log_dirs, temp_dir, network_conf, target_log, run_row_limit
+        )
+        if destination_dir.exists():
+            shutil.rmtree(destination_dir)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        return external_merge_sorted_runs_to_chunks(
+            run_paths,
+            temp_dir,
+            destination_dir,
+            final_header,
+            output_chunk_size,
+            merge_fan_in,
+        )
+    finally:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
 
 
 def main() -> None:
     parse_args()
     settings = load_settings()
-    input_path, output_root, target_logs, network_conf = resolve_config(settings)
+    input_path, output_root, target_logs, network_conf, output_chunk_size, run_row_limit, merge_fan_in = resolve_config(settings)
 
     if output_root.exists() and not output_root.is_dir():
         raise SystemExit(f"Output root exists and is not a directory: {output_root}")
@@ -335,15 +666,18 @@ def main() -> None:
     created_output_dirs: list[Path] = []
     for target_log in target_logs:
         target_output_dir = output_root / target_output_dir_name(target_log) / batch_name
-        target_output_dir.mkdir(parents=True, exist_ok=True)
         created_output_dirs.append(target_output_dir)
-        for log_dir in log_dirs:
-            target_file = log_dir / target_log
-            if not target_file.is_file():
-                continue
-            destination = target_output_dir / f"{log_dir.name}.csv"
-            convert_log_dir(log_dir, destination, network_conf, [target_log])
-            print(f"{target_file} -> {destination}")
+        created_files = convert_batch_to_chunked_csv(
+            log_dirs,
+            target_output_dir,
+            network_conf,
+            target_log,
+            output_chunk_size,
+            run_row_limit,
+            merge_fan_in,
+        )
+        for created_file in created_files:
+            print(created_file)
 
     for created_output_dir in created_output_dirs:
         print(created_output_dir)

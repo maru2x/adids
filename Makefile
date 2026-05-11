@@ -9,6 +9,8 @@ else
 PYTHON ?= python3
 endif
 
+SCHEMA ?= zeek
+
 .PHONY: venv
 venv:
 	@BOOTSTRAP_VERSION="$$("$(BOOTSTRAP_PYTHON)" -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')"; \
@@ -40,6 +42,10 @@ unit-test:
 test-e2e:
 	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/e2e" -q -m e2e
 
+.PHONY: test-DataModif
+test-DataModif:
+	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/e2e/data_modified" -q -m e2e
+
 .PHONY: test-all
 test-all: unit-test test-e2e
 
@@ -50,3 +56,11 @@ pcap-to-log:
 .PHONY: log-to-csv
 log-to-csv:
 	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/log_to_csv_extractor.py"
+
+.PHONY: align-mix
+align-mix:
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/DataModified/align_mix.py"
+
+.PHONY: validate-csv-dataset
+validate-csv-dataset:
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/Validate/validate_csv_dataset.py"

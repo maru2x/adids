@@ -152,13 +152,13 @@ data/logs/zeek/2201AusEast/20250513234727/conn.log
 `make log-to-csv` writes:
 
 ```text
-<OUTPUT_ROOT_DIR_PATH>/<target_log_name>/<batch_name>/<timestamp>.csv
+<OUTPUT_ROOT_DIR_PATH>/<target_log_name>/<batch_name>/<chunk_index>_<first_daytime>.csv
 ```
 
 Example:
 
 ```text
-data/csv/zeek/conn/2201AusEast/20250513234727.csv
+data/csv/zeek/conn/2201AusEast/00000_20250513234728.csv
 ```
 
 ### Runtime CSV contract

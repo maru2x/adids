@@ -1,0 +1,3 @@
+daytime,label,conn_state,duration,orig_bytes,resp_bytes,orig_pkts,resp_pkts,orig_ip_bytes,resp_ip_bytes,missed_bytes,local_orig,local_resp
+2022-01-01 09:00:00,0,SF,1,10,20,1,1,38,38,0,true,false
+2022-01-01 09:00:01,1,SF,1,11,21,1,1,39,39,0,true,false

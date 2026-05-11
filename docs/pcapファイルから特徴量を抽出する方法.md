@@ -94,6 +94,9 @@ data/zeek/
 設定項目：
 - `LogToCsv.INPUT_DIR_PATH`: CSVに変換したいログバッチディレクトリ、もしくは単一ログディレクトリを指定する。
 - `LogToCsv.OUTPUT_ROOT_DIR_PATH`: 変換後のcsvファイルの出力ルートを指定する。実際の出力先は `OUTPUT_ROOT_DIR_PATH/<target_log_name>/<batch_name>/` となる。
+- `LogToCsv.OUTPUT_CHUNK_SIZE`: batch 全体を `daytime` で再統合したあと、何行ごとに最終CSVを分割するかを指定する。
+- `LogToCsv.RUN_ROW_LIMIT`: log を streaming で読みながら、temp run を 1 本作る前にメモリ上へ何行までためるかを指定する。
+- `LogToCsv.MERGE_FAN_IN`: temp run を何本ずつ段階マージするかを指定する。
 - `LogToCsv.TARGET_LOGS`: CSV化の対象にするログファイル名を配列で指定する。`["conn.log"]` のように1件でも複数件でもよい。
 - `LogToCsv.NETWORK_KEY`: 同じ設定ファイル内の `NetworkAddress` から参照するキーを指定する。
 
@@ -107,8 +110,10 @@ make log-to-csv
 `TARGET_LOGS` に複数のログファイル名を指定した場合は、ログ種別ごとにディレクトリを分けてCSVを出力する。単一指定でも同じ構造に揃える。
 出力先は `OUTPUT_ROOT_DIR_PATH/<target_log_name>/<batch_name>/` に揃えられる。`target_log_name` には `conn.log` なら `conn` のように拡張子を除いた名前を使う。
 また、Zeek の `conn.log` にある `ts` は開始時刻なので、そのままでは CSV 上で時系列が逆転しうる。
-そのため現在の `log-to-csv` では、CSV の `daytime` を原則 `ts + duration` から作り、その値で昇順に並べて出力する。
+そのため現在の `log-to-csv` では、まず各rowの `daytime` を原則 `ts + duration` から作り、一定件数ごとの temp run を作ったうえで、external merge sort により batch 全体の row を `daytime` 昇順に再統合してから最終CSVを chunk 出力する。
 `duration = 0` は有効値として扱い、`duration` が空文字・欠落・非数値のときだけ `ts` ベースへフォールバックする。
+`ts` 自体が欠落・空文字・非数値で flow end time を決められない row は CSV に出力しない。
+また、`TARGET_LOGS` が batch 全体で 1 件も見つからない場合や、最終的に 1 行も CSV 化できない場合は失敗として終了する。
 
 ## 入出力の規約
 
@@ -164,8 +169,8 @@ make log-to-csv
 data/csv/zeek/
   conn/
     2201AusEast/
-      20230401000000.csv
-      20230401010000.csv
+      00000_20230401000000.csv
+      00001_20230401010000.csv
 ```
 
 ### 3. 単一ログディレクトリを入力して CSV 化する場合
@@ -188,7 +193,7 @@ make log-to-csv
 data/csv/zeek/
   conn/
     2201AusEast/
-      20230401000000.csv
+      00000_20230401000000.csv
 ```
 
 単一ログディレクトリでも、親ディレクトリ名がバッチ名として使われます。

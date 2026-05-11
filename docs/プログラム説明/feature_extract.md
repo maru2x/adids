@@ -71,22 +71,23 @@ Zeek の JSON Lines log を runtime 用 CSV へ変換するファイルである
   - `NETWORK_KEY` に対応する network 定義を取る
 - `discover_log_dirs()`
   - 入力が単一 log dir か batch dir かを判定する
-- `iter_records()` / `load_records()`
-  - JSON Lines を辞書配列へ展開する
+- `iter_records()`
+  - JSON Lines を 1 record ずつ streaming で読む
 - `collect_header()`
   - レコード群から CSV header を組み立てる
 - `resolve_flow_end_ts()`
   - `ts + duration` の計算を行う
-- `sort_records_by_flow_end_time()`
-  - flow end time で昇順に並べる
 - `should_exclude_record()`
   - `EXCEPTION` を含む通信を除外する
 - `assign_label()`
   - `MALICIOUS` を含めば `1`
   - `BENIGN` と外部の通信なら `0`
   - どちらにも該当しなければ `None`
-- `write_csv()`
-  - 上のルールを適用して最終 CSV を書く
+- `create_initial_sorted_runs()`
+  - 各 log dir を streaming で走査し、`RUN_ROW_LIMIT` 件ごとの sorted run を作る
+  - `ts` が欠落・不正な row はここで捨てる
+- `external_merge_sorted_runs_to_chunks()`
+  - temp run 群を段階マージし、leaf CSV を `daytime` 昇順で chunk 出力する
 
 注意点:
 

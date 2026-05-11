@@ -82,13 +82,13 @@ adids/
 ### メイン実行系
 
 ```bash
-make venv
-make install
-make bootstrap
-make run
-make unit-test
-make test-e2e
-make test-all
+make venv       # .venv を作成
+make install    # .venv に依存をインストール
+make bootstrap  # .venv 作成と依存インストールをまとめて実行
+make run        # runtime を実行
+make unit-test  # unit テストを実行
+make test-e2e   # e2e テストを実行
+make test-all   # unit / e2e テストをまとめて実行
 ```
 
 ### 特徴量抽出系
@@ -102,7 +102,8 @@ make log-to-csv  # logファイルからcsvファイルを作成
 ### データ加工系
 
 ```bash
-make run
+make align-mix             # 片側の daytime をもう片側へ合わせてから mixed CSV を作成
+make validate-csv-dataset  # Validate/settings.json の設定で leaf CSV ディレクトリを検査
 ```
 
 ### グラフ作成系

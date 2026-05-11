@@ -6,6 +6,10 @@
   - Zeek の E2E で使う極小 PCAP
   - `pcap/bulk_dataset/` に中サイズ bulk dataset 用の PCAP を置く
   - `pcap/protocol_traffic/` に protocol-specific な PCAP を置く
+- `data_modified/`
+  - `DataModified` の golden E2E で使う固定入力 CSV と expected CSV
+- `validate/`
+  - CSV dataset validator の fixture
 - `expected_csv/`
   - E2E の期待結果
 - `zeek_logs/`
@@ -23,6 +27,11 @@
 - `pcap/bulk_dataset/bulk_udp_mix_a.pcap`
 - `pcap/bulk_dataset/bulk_dns_mix_b.pcap`
 - `pcap/bulk_dataset/bulk_https_mix_c.pcap`
+- `data_modified/combine_case/`
+- `data_modified/daytime_override_case/`
+- `data_modified/align_mix_case/`
+- `validate/valid_zeek_leaf/`
+- `validate/invalid_time_order_leaf/`
 - `expected_csv/zeek_udp_roundtrip.csv`
 - `expected_csv/zeek_udp_malicious_roundtrip.csv`
 - `expected_csv/zeek_udp_two_roundtrips.csv`

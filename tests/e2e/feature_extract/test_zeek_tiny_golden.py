@@ -78,7 +78,7 @@ TINY_GOLDEN_CASES = (
 # Expectation:
 # - 最終 conn.csv が expected_csv と一致する
 # - runtime に渡すケースでは conn.csv の最低契約も満たす
-# - exception fixture では header-only CSV が生成される
+# - EXCEPTION などで全行が除外される fixture では失敗する
 # Target scripts:
 # - pcap_to_log_extractor.main()
 # - log_to_csv_extractor.main()
@@ -88,6 +88,17 @@ TINY_GOLDEN_CASES = (
 @pytest.mark.skipif(shutil.which("zeek") is None, reason="zeek command is required for e2e feature extraction tests")
 @pytest.mark.parametrize("case", TINY_GOLDEN_CASES)
 def test_full_pipeline_main_matches_tiny_golden_csv(tmp_path, monkeypatch, case):
+    if "exception" in case["pcap_name"]:
+        with pytest.raises(SystemExit, match="No CSV rows were produced for conn\\.log after filtering and labeling"):
+            run_full_pipeline_main(
+                monkeypatch,
+                tmp_path,
+                case["pcap_name"],
+                target_logs=["conn.log"],
+                network_conf=case["network_conf"],
+            )
+        return
+
     input_dir, _, csv_output_root = run_full_pipeline_main(
         monkeypatch,
         tmp_path,
@@ -100,9 +111,8 @@ def test_full_pipeline_main_matches_tiny_golden_csv(tmp_path, monkeypatch, case)
     assert len(csv_files) == 1
 
     expected_path = FIXTURE_DIR / "expected_csv" / case["expected_name"]
-    expect_runtime_contract = "exception" not in case["pcap_name"]
     assert_csv_matches_expected_subset(
         csv_files[0],
         expected_path,
-        expect_runtime_contract=expect_runtime_contract,
+        expect_runtime_contract=True,
     )

@@ -52,6 +52,7 @@
 ### `src/util/DataModified`
 
 - `src/util/DataModified/settings.json`
+- `src/util/DataModified/align_mix.py`
 - `src/util/DataModified/two_csv_combine.py`
 - `src/util/DataModified/csv_daytime_override.py`
 - `src/util/DataModified/time_range_filter.py`
@@ -61,6 +62,12 @@
 ### `src/util/ElasticSearch`
 
 - `src/util/ElasticSearch/es_utils.py`
+
+### `src/util/Validate`
+
+- `src/util/Validate/validate_csv_dataset.py`
+- `src/util/Validate/README.md`
+- `src/util/Validate/settings.json`
 
 ### `src/util/Visualize`
 

@@ -7,6 +7,7 @@
 設計の新しさにはかなり差があり、次の 2 系統に分かれる。
 
 - 近年整理された設定駆動スクリプト
+  - `align_mix.py`
   - `two_csv_combine.py`
   - `csv_daytime_override.py`
 - 研究用の one-off script
@@ -18,14 +19,42 @@
 
 ## `DataModified/settings.json`
 
-現在は 2 スクリプト向けの設定を持つ。
+現在は 3 スクリプト向けの設定を持つ。
 
+- `AlignMix`
+  - 片側の時刻合わせと 2 系列 merge をまとめて実行する設定
 - `Combiner`
   - 2 つの CSV leaf dir を時系列に merge するための設定
 - `DaytimeOverride`
   - 1 系列の `daytime` を平行移動するための設定
 
 比較的新しいスクリプトは、このファイルを entry point として読む。
+
+## `align_mix.py`
+
+2 つの CSV ディレクトリのうち片側をもう片側の先頭 `daytime` に合わせ、そのまま merge まで実行するスクリプトである。
+
+役割:
+
+- `ALIGN_TO=A/B` に応じて基準側を決める
+- 基準側の最小 `daytime` を baseline として求める
+- 反対側に `csv_daytime_override.py` 相当の shift をかける
+- shift 後の中間出力を使って `two_csv_combine.py` 相当の merge を行う
+
+主要要素:
+
+- `load_settings()`
+  - `AlignMix` セクションだけを読む
+- `normalize_align_to()`
+  - `A/B` 指定の正規化と検証
+- `validate_distinct_paths()`
+  - 入力・中間・出力 path の使い回しを防ぐ
+- `resolve_baseline()`
+  - 基準側の最小 `daytime` を `BASELINE` 文字列へ変換する
+- `align_and_mix_directories()`
+  - shift と merge をまとめて実行する本体
+
+用途としては、良性側と攻撃側の収集時刻がずれている 2 系列を、実験用の 1 つの leaf CSV dir へまとめる運用に向く。
 
 ## `two_csv_combine.py`
 
@@ -142,6 +171,6 @@ ElasticSearch 接続補助である。
 
 ## このディレクトリを読むときの注意
 
-- `two_csv_combine.py` と `csv_daytime_override.py` は、現在のテストが存在し、比較的新しい設計である
+- `align_mix.py`, `two_csv_combine.py`, `csv_daytime_override.py` は、現在のテストが存在し、比較的新しい設計である
 - `time_range_filter.py`, `delete_attack.py`, `injector.py` は path や定数がハードコードされており、library 的再利用より作業用 script として読む方が自然
 - 研究用 synthetic dataset を作るときは、出力先が runtime の leaf CSV dir 契約を満たしているか確認する必要がある

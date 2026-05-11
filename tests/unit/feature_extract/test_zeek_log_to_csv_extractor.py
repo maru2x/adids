@@ -260,254 +260,370 @@ def test_iter_records_reports_invalid_json_line_number(tmp_path):
         list(extractor.iter_records([log_file]))
 
 
-# Input:
-# - fixture unordered_conn.log
-# Expectation:
-# - CSV の daytime は入力順ではなく flow end time 順になる
-# Target method:
-# - convert_log_dir()
-# Overview:
-# - 指定 log dir の target log を読み込み、CSV header 構築、並び替え、書き出しまでを行う。
-# Note:
-# - resolve_flow_end_ts() と sort_records_by_flow_end_time() をまとめて見ている。
-def test_convert_log_dir_sorts_by_flow_end_time(tmp_path):
+def test_convert_batch_to_chunked_csv_merges_log_dirs_in_global_daytime_order(tmp_path):
     root = Path(tmp_path)
-    log_dir = root / "logs" / "20220101000000"
-    log_dir.mkdir(parents=True)
-    destination = root / "csv" / "20220101000000.csv"
+    batch_dir = root / "logs" / "batch_a"
+    first_dir = batch_dir / "20220101090000"
+    second_dir = batch_dir / "20220101090001"
+    first_dir.mkdir(parents=True)
+    second_dir.mkdir()
+    destination_dir = root / "csv" / "conn" / "batch_a"
 
-    (log_dir / "conn.log").write_text(
-        (FIXTURE_DIR / "unordered_conn.log").read_text(encoding="utf-8"),
+    (first_dir / "conn.log").write_text(
+        json.dumps(
+            {
+                "ts": 1640995200,
+                "duration": 10,
+                "uid": "late-end",
+                "id.orig_h": "192.168.0.10",
+                "id.resp_h": "8.8.8.8",
+                "conn_state": "SF",
+                "local_orig": True,
+                "local_resp": False,
+                "missed_bytes": 0,
+                "orig_pkts": 1,
+                "resp_pkts": 1,
+                "orig_ip_bytes": 29,
+                "resp_ip_bytes": 29,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (second_dir / "conn.log").write_text(
+        json.dumps(
+            {
+                "ts": 1640995201,
+                "duration": 1,
+                "uid": "early-end",
+                "id.orig_h": "192.168.0.20",
+                "id.resp_h": "1.1.1.1",
+                "conn_state": "SF",
+                "local_orig": True,
+                "local_resp": False,
+                "missed_bytes": 0,
+                "orig_pkts": 1,
+                "resp_pkts": 1,
+                "orig_ip_bytes": 29,
+                "resp_ip_bytes": 29,
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
 
-    extractor.convert_log_dir(log_dir, destination, network_conf(), ["conn.log"])
+    created_files = extractor.convert_batch_to_chunked_csv(
+        [first_dir, second_dir],
+        destination_dir,
+        network_conf(),
+        "conn.log",
+        output_chunk_size=10,
+        run_row_limit=100,
+        merge_fan_in=2,
+    )
 
-    rows = read_csv_rows(destination)
+    assert [path.name for path in created_files] == ["00000_20220101090002.csv"]
+    rows = read_csv_rows(created_files[0])
+    assert [row["uid"] for row in rows] == ["early-end", "late-end"]
     assert [row["daytime"] for row in rows] == [
-        "2022-01-01 09:00:06",
-        "2022-01-01 09:10:00",
-    ]
-
-
-# Input:
-# - fixture zero_duration_conn.log
-# Expectation:
-# - duration = 0 は欠損ではなく有効値として扱われる
-# - daytime は ts と同じ時刻になる
-# Target method:
-# - convert_log_dir()
-# Overview:
-# - 指定 log dir の target log を読み込み、CSV header 構築、並び替え、書き出しまでを行う。
-def test_convert_log_dir_keeps_zero_duration_as_valid_end_time(tmp_path):
-    root = Path(tmp_path)
-    log_dir = root / "logs" / "20220101000000"
-    log_dir.mkdir(parents=True)
-    destination = root / "csv" / "20220101000000.csv"
-
-    (log_dir / "conn.log").write_text(
-        (FIXTURE_DIR / "zero_duration_conn.log").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-
-    extractor.convert_log_dir(log_dir, destination, network_conf(), ["conn.log"])
-
-    rows = read_csv_rows(destination)
-    assert rows[0]["daytime"] == "2022-01-01 09:00:00"
-
-
-# Input:
-# - fixture duration_fallback_conn.log
-# Expectation:
-# - duration 欠損/不正値では ts にフォールバックする
-# Target method:
-# - convert_log_dir()
-# Overview:
-# - 指定 log dir の target log を読み込み、CSV header 構築、並び替え、書き出しまでを行う。
-# Note:
-# - runtime contract の daytime 生成ルールの基礎。
-def test_convert_log_dir_falls_back_to_start_time_when_duration_is_missing_or_invalid(tmp_path):
-    root = Path(tmp_path)
-    log_dir = root / "logs" / "20220101000000"
-    log_dir.mkdir(parents=True)
-    destination = root / "csv" / "20220101000000.csv"
-
-    (log_dir / "conn.log").write_text(
-        (FIXTURE_DIR / "duration_fallback_conn.log").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-
-    extractor.convert_log_dir(log_dir, destination, network_conf(), ["conn.log"])
-
-    rows = read_csv_rows(destination)
-    assert [row["daytime"] for row in rows] == [
-        "2022-01-01 09:00:00",
+        "2022-01-01 09:00:02",
         "2022-01-01 09:00:10",
     ]
 
 
-# Input:
-# - benign -> external の keep record
-# - unlabeled record
-# - exception record
-# - list/dict を含む nested value
-# Expectation:
-# - keep record だけ CSV に残る
-# - label は 0
-# - nested value は JSON 文字列化される
-# Target method:
-# - convert_log_dir()
-# Overview:
-# - 指定 log dir の target log を読み込み、CSV header 構築、並び替え、書き出しまでを行う。
-# Note:
-# - write_csv() の filtering と serialization をまとめて確認する integration 寄りのテスト。
-def test_convert_log_dir_filters_unknown_and_exception_records_and_serializes_nested_values(tmp_path):
+def test_convert_batch_to_chunked_csv_fails_when_all_rows_are_filtered(tmp_path):
     root = Path(tmp_path)
-    log_dir = root / "logs" / "20220101000000"
+    log_dir = root / "logs" / "batch_a" / "20220101090000"
     log_dir.mkdir(parents=True)
-    destination = root / "csv" / "20220101000000.csv"
-    records = [
-        {
-            "ts": 1640995200,
-            "duration": 2,
-            "uid": "keep",
-            "id.orig_h": "192.168.0.10",
-            "id.resp_h": "8.8.8.8",
-            "history": ["Sh", "AD"],
-            "meta": {"proto": "udp"},
-        },
-        {
-            "ts": 1640995201,
-            "duration": 1,
-            "uid": "skip-unlabeled",
-            "id.orig_h": "8.8.8.8",
-            "id.resp_h": "1.1.1.1",
-        },
-        {
-            "ts": 1640995202,
-            "duration": 1,
-            "uid": "skip-exception",
-            "id.orig_h": "192.168.0.200",
-            "id.resp_h": "8.8.4.4",
-        },
-    ]
-    (log_dir / "conn.log").write_text(
-        "\n".join(json.dumps(record) for record in records) + "\n",
-        encoding="utf-8",
-    )
-
-    extractor.convert_log_dir(log_dir, destination, network_conf(), ["conn.log"])
-
-    rows = read_csv_rows(destination)
-    assert len(rows) == 1
-    assert rows[0]["uid"] == "keep"
-    assert rows[0]["label"] == "0"
-    assert rows[0]["daytime"] == "2022-01-01 09:00:02"
-    assert json.loads(rows[0]["history"]) == ["Sh", "AD"]
-    assert json.loads(rows[0]["meta"]) == {"proto": "udp"}
-
-
-# Input:
-# - 1 つの log_dir に conn.log と dns.log の両方を置く
-# Expectation:
-# - 両ファイルの record が 1 本の CSV に入る
-# - 存在しない key は空文字で埋まる
-# Target method:
-# - convert_log_dir()
-# Overview:
-# - 指定 log dir の target log を読み込み、CSV header 構築、並び替え、書き出しまでを行う。
-# Note:
-# - convert_log_dir(..., target_logs=[...]) の複数ファイル読込を確認する。
-def test_convert_log_dir_reads_multiple_target_log_files(tmp_path):
-    root = Path(tmp_path)
-    log_dir = root / "logs" / "20220101000000"
-    log_dir.mkdir(parents=True)
-    destination = root / "csv" / "20220101000000.csv"
+    destination_dir = root / "csv" / "conn" / "batch_a"
 
     (log_dir / "conn.log").write_text(
         json.dumps(
             {
                 "ts": 1640995200,
-                "duration": 0,
-                "uid": "conn-row",
-                "id.orig_h": "192.168.0.10",
+                "duration": 1,
+                "uid": "skip-exception",
+                "id.orig_h": "192.168.0.200",
                 "id.resp_h": "8.8.8.8",
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    (log_dir / "dns.log").write_text(
-        json.dumps(
-            {
-                "ts": 1640995205,
-                "duration": 0,
-                "uid": "dns-row",
-                "query": "example.com",
-                "id.orig_h": "192.168.0.20",
-                "id.resp_h": "1.1.1.1",
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    extractor.convert_log_dir(log_dir, destination, network_conf(), ["conn.log", "dns.log"])
-
-    rows = read_csv_rows(destination)
-    assert [row["uid"] for row in rows] == ["conn-row", "dns-row"]
-    assert rows[0]["query"] == ""
-    assert rows[1]["query"] == "example.com"
-
-
-# Input:
-# - duration / orig_bytes / resp_bytes を持たない one-way 相当の conn.log record
-# Expectation:
-# - CSV header には conn.log 必須列が残る
-# - duration は 0 で補完される
-# - orig_bytes / resp_bytes は空文字のまま書かれる
-# Target method:
-# - convert_log_dir()
-# Overview:
-# - sparse な conn.log record を runtime 契約に沿う CSV へ正規化する。
-def test_convert_log_dir_keeps_conn_required_columns_and_sets_zero_duration_for_one_way_record(tmp_path):
-    root = Path(tmp_path)
-    log_dir = root / "logs" / "20220101000000"
-    log_dir.mkdir(parents=True)
-    destination = root / "csv" / "20220101000000.csv"
-
-    (log_dir / "conn.log").write_text(
-        json.dumps(
-            {
-                "ts": 1640995200,
-                "uid": "one-way",
-                "id.orig_h": "192.168.0.10",
-                "id.orig_p": 47000,
-                "id.resp_h": "9.9.9.9",
-                "id.resp_p": 47001,
-                "proto": "udp",
-                "conn_state": "S0",
+                "conn_state": "SF",
                 "local_orig": True,
                 "local_resp": False,
                 "missed_bytes": 0,
-                "history": "D",
                 "orig_pkts": 1,
+                "resp_pkts": 1,
                 "orig_ip_bytes": 29,
-                "resp_pkts": 0,
-                "resp_ip_bytes": 0,
+                "resp_ip_bytes": 29,
             }
         )
         + "\n",
         encoding="utf-8",
     )
 
-    extractor.convert_log_dir(log_dir, destination, network_conf(), ["conn.log"])
+    with pytest.raises(SystemExit, match="No CSV rows were produced for conn\\.log after filtering and labeling"):
+        extractor.convert_batch_to_chunked_csv(
+            [log_dir],
+            destination_dir,
+            network_conf(),
+            "conn.log",
+            output_chunk_size=10,
+            run_row_limit=100,
+            merge_fan_in=2,
+        )
 
-    rows = read_csv_rows(destination)
+
+def test_convert_batch_to_chunked_csv_streams_records_without_old_helper(tmp_path, monkeypatch):
+    root = Path(tmp_path)
+    log_dir = root / "logs" / "batch_a" / "20220101090000"
+    log_dir.mkdir(parents=True)
+    destination_dir = root / "csv" / "conn" / "batch_a"
+
+    (log_dir / "conn.log").write_text(
+        json.dumps(
+            {
+                "ts": 1640995200,
+                "duration": 1,
+                "uid": "streamed-row",
+                "id.orig_h": "192.168.0.10",
+                "id.resp_h": "8.8.8.8",
+                "conn_state": "SF",
+                "local_orig": True,
+                "local_resp": False,
+                "missed_bytes": 0,
+                "orig_pkts": 1,
+                "resp_pkts": 1,
+                "orig_ip_bytes": 29,
+                "resp_ip_bytes": 29,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_convert_log_dir(*_args, **_kwargs):
+        raise AssertionError("convert_log_dir() should not be used by convert_batch_to_chunked_csv")
+
+    monkeypatch.setattr(extractor, "convert_log_dir", fail_convert_log_dir, raising=False)
+
+    created_files = extractor.convert_batch_to_chunked_csv(
+        [log_dir],
+        destination_dir,
+        network_conf(),
+        "conn.log",
+        output_chunk_size=10,
+        run_row_limit=1,
+        merge_fan_in=2,
+    )
+
+    assert [path.name for path in created_files] == ["00000_20220101090001.csv"]
+    rows = read_csv_rows(created_files[0])
+    assert [row["uid"] for row in rows] == ["streamed-row"]
+
+
+def test_convert_batch_to_chunked_csv_preserves_conn_required_columns_in_streaming_path(tmp_path):
+    root = Path(tmp_path)
+    log_dir = root / "logs" / "batch_a" / "20220101090000"
+    log_dir.mkdir(parents=True)
+    destination_dir = root / "csv" / "conn" / "batch_a"
+
+    (log_dir / "conn.log").write_text(
+        json.dumps(
+            {
+                "ts": 1640995200,
+                "uid": "missing-duration",
+                "id.orig_h": "192.168.0.10",
+                "id.resp_h": "8.8.8.8",
+                "conn_state": "SF",
+                "local_orig": True,
+                "local_resp": False,
+                "missed_bytes": 0,
+                "orig_pkts": 1,
+                "resp_pkts": 1,
+                "orig_ip_bytes": 29,
+                "resp_ip_bytes": 29,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    created_files = extractor.convert_batch_to_chunked_csv(
+        [log_dir],
+        destination_dir,
+        network_conf(),
+        "conn.log",
+        output_chunk_size=10,
+        run_row_limit=1,
+        merge_fan_in=2,
+    )
+
+    rows = read_csv_rows(created_files[0])
     assert len(rows) == 1
     row = rows[0]
     for column in extractor.CONN_REQUIRED_COLUMNS:
         assert column in row
     assert row["duration"] == "0"
-    assert row["orig_bytes"] == ""
-    assert row["resp_bytes"] == ""
+
+
+def test_convert_batch_to_chunked_csv_handles_multi_run_multi_level_merge_and_multi_chunk_output(tmp_path):
+    root = Path(tmp_path)
+    batch_dir = root / "logs" / "batch_a"
+    destination_dir = root / "csv" / "conn" / "batch_a"
+    records = [
+        ("20220101090005", 1640995204, "u4"),
+        ("20220101090001", 1640995200, "u0"),
+        ("20220101090003", 1640995202, "u2"),
+        ("20220101090002", 1640995201, "u1"),
+        ("20220101090004", 1640995203, "u3"),
+    ]
+
+    log_dirs = []
+    for dir_name, ts, uid in records:
+        log_dir = batch_dir / dir_name
+        log_dir.mkdir(parents=True, exist_ok=True)
+        (log_dir / "conn.log").write_text(
+            json.dumps(
+                {
+                    "ts": ts,
+                    "duration": 1,
+                    "uid": uid,
+                    "id.orig_h": "192.168.0.10",
+                    "id.resp_h": "8.8.8.8",
+                    "conn_state": "SF",
+                    "local_orig": True,
+                    "local_resp": False,
+                    "missed_bytes": 0,
+                    "orig_pkts": 1,
+                    "resp_pkts": 1,
+                    "orig_ip_bytes": 29,
+                    "resp_ip_bytes": 29,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        log_dirs.append(log_dir)
+
+    created_files = extractor.convert_batch_to_chunked_csv(
+        log_dirs,
+        destination_dir,
+        network_conf(),
+        "conn.log",
+        output_chunk_size=2,
+        run_row_limit=1,
+        merge_fan_in=2,
+    )
+
+    assert [path.name for path in created_files] == [
+        "00000_20220101090001.csv",
+        "00001_20220101090003.csv",
+        "00002_20220101090005.csv",
+    ]
+    rows = []
+    for path in created_files:
+        rows.extend(read_csv_rows(path))
+    assert [row["uid"] for row in rows] == ["u0", "u1", "u2", "u3", "u4"]
+    assert [row["daytime"] for row in rows] == [
+        "2022-01-01 09:00:01",
+        "2022-01-01 09:00:02",
+        "2022-01-01 09:00:03",
+        "2022-01-01 09:00:04",
+        "2022-01-01 09:00:05",
+    ]
+
+
+def test_convert_batch_to_chunked_csv_preserves_existing_outputs_when_conversion_fails(tmp_path):
+    root = Path(tmp_path)
+    log_dir = root / "logs" / "batch_a" / "20220101090000"
+    log_dir.mkdir(parents=True)
+    destination_dir = root / "csv" / "conn" / "batch_a"
+    destination_dir.mkdir(parents=True)
+    stale_csv = destination_dir / "stale.csv"
+    stale_csv.write_text("daytime,label\n2022-01-01 09:00:00,0\n", encoding="utf-8")
+
+    (log_dir / "conn.log").write_text(
+        json.dumps(
+            {
+                "ts": 1640995200,
+                "duration": 1,
+                "uid": "skip-exception",
+                "id.orig_h": "192.168.0.200",
+                "id.resp_h": "8.8.8.8",
+                "conn_state": "SF",
+                "local_orig": True,
+                "local_resp": False,
+                "missed_bytes": 0,
+                "orig_pkts": 1,
+                "resp_pkts": 1,
+                "orig_ip_bytes": 29,
+                "resp_ip_bytes": 29,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="No CSV rows were produced for conn\\.log after filtering and labeling"):
+        extractor.convert_batch_to_chunked_csv(
+            [log_dir],
+            destination_dir,
+            network_conf(),
+            "conn.log",
+            output_chunk_size=10,
+            run_row_limit=100,
+            merge_fan_in=2,
+        )
+
+    assert sorted(path.name for path in destination_dir.iterdir()) == ["stale.csv"]
+
+
+def test_convert_batch_to_chunked_csv_fails_when_target_log_is_missing_everywhere(tmp_path):
+    root = Path(tmp_path)
+    log_dir = root / "logs" / "batch_a" / "20220101090000"
+    log_dir.mkdir(parents=True)
+    destination_dir = root / "csv" / "dns" / "batch_a"
+    (log_dir / "conn.log").write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match=r"No target logs \(dns\.log\) were found"):
+        extractor.convert_batch_to_chunked_csv(
+            [log_dir],
+            destination_dir,
+            network_conf(),
+            "dns.log",
+            output_chunk_size=10,
+            run_row_limit=100,
+            merge_fan_in=2,
+        )
+
+
+def test_convert_batch_to_chunked_csv_skips_invalid_ts_and_fails_if_nothing_remains(tmp_path):
+    root = Path(tmp_path)
+    log_dir = root / "logs" / "batch_a" / "20220101090000"
+    log_dir.mkdir(parents=True)
+    destination_dir = root / "csv" / "conn" / "batch_a"
+    (log_dir / "conn.log").write_text(
+        json.dumps(
+            {
+                "ts": "",
+                "duration": 1,
+                "uid": "bad-ts",
+                "id.orig_h": "192.168.0.10",
+                "id.resp_h": "8.8.8.8",
+                "conn_state": "SF",
+                "local_orig": True,
+                "local_resp": False,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match=r"Skipped 1 records because ts/duration were missing or invalid"):
+        extractor.convert_batch_to_chunked_csv(
+            [log_dir],
+            destination_dir,
+            network_conf(),
+            "conn.log",
+            output_chunk_size=10,
+            run_row_limit=100,
+            merge_fan_in=2,
+        )

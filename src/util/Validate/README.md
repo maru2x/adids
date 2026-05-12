@@ -6,6 +6,7 @@
 
 - `validate_csv_dataset.py`
   - leaf CSV ディレクトリが runtime の想定契約を満たしているかを標準出力へ報告する
+  - 各チェック項目の `OK` / `警告` / `NG` と、簡易サマリを合わせて出す
 - `settings.json`
   - `validate_csv_dataset.py` の既定入力を決める
 
@@ -58,6 +59,8 @@ data/csv/zeek/conn/2201AusEast/
   - `zeek` または `legacy`
 - `RUNTIME_SETTINGS_PATH`
   - required columns を解決するために参照する `src/main/settings.json`
+- `ZEEK_SETTINGS_PATH`
+  - 通信方向サマリを出すときに参照する `src/util/FeatureExtract/Zeek/settings.json`
 
 CLI 引数を与えた場合は、その値で settings を上書きする。
 
@@ -96,9 +99,17 @@ Zeek スキーマでいう required columns は、「このリポジトリの現
 
 結果は標準出力へ出る。
 
-- 問題がなければ `[OK]`
-- 問題があれば `[NG]`
+- `runtime契約チェック`
+  - 各確認項目を `OK` / `警告` / `NG` で列挙する
+- `データサマリ`
+  - 総フロー数、CSV 数、観測期間
+  - `label=0/1` の割合と件数
+  - `外向き/内向き/その他/不明` の割合と件数
+  - `LABEL_FEATURES` の値分布
+  - CSV 全列の欠損割合と件数
+- `詳細`
+  - 問題がある場合はファイル名と行番号付きで内容を列挙する
 
-違反がある場合は、ファイル名と行番号付きで内容を列挙する。
+Zeek 由来 CSV の通信方向は、原則として `ZEEK_SETTINGS_PATH` にある `NetworkAddress` を使って Legacy の `snd` / `rcv` と同じ基準で決める。
 
 将来的に、同種の validator を追加する場合もこのディレクトリへ寄せる想定である。

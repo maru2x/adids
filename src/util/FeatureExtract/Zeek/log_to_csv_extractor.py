@@ -9,6 +9,8 @@ import heapq
 import ipaddress
 import json
 import shutil
+import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Iterator, List, Sequence
@@ -22,6 +24,22 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 DEFAULT_OUTPUT_CHUNK_SIZE = 3000
 DEFAULT_RUN_ROW_LIMIT = 100000
 DEFAULT_MERGE_FAN_IN = 256
+DEFAULT_AUTO_VALIDATE_CONN_OUTPUT = True
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from src.util.Validate import validate_csv_dataset as csv_validator
+
+
+@dataclass
+class RunCreationStats:
+    matched_log_dir_count: int = 0
+    scanned_record_count: int = 0
+    skipped_invalid_ts_count: int = 0
+    excluded_record_count: int = 0
+    unlabeled_record_count: int = 0
+    emitted_row_count: int = 0
+    run_count: int = 0
 
 
 def parse_args() -> argparse.Namespace:
@@ -105,7 +123,15 @@ def resolve_positive_int(value: object, *, field_name: str, default: int) -> int
     return parsed
 
 
-def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict, int, int, int]:
+def resolve_bool(value: object, *, field_name: str, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    raise SystemExit(f"{field_name} must be a boolean in {SETTINGS_PATH}")
+
+
+def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict, int, int, int, bool]:
     section = settings.get("LogToCsv")
     if not isinstance(section, dict):
         raise SystemExit(f"LogToCsv section not found in {SETTINGS_PATH}")
@@ -130,9 +156,23 @@ def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict, int, in
         field_name="LogToCsv.MERGE_FAN_IN",
         default=DEFAULT_MERGE_FAN_IN,
     )
+    auto_validate_conn_output = resolve_bool(
+        section.get("AUTO_VALIDATE_CONN_OUTPUT"),
+        field_name="LogToCsv.AUTO_VALIDATE_CONN_OUTPUT",
+        default=DEFAULT_AUTO_VALIDATE_CONN_OUTPUT,
+    )
     if merge_fan_in < 2:
         raise SystemExit(f"LogToCsv.MERGE_FAN_IN must be at least 2 in {SETTINGS_PATH}")
-    return input_path, output_root, target_logs, network_conf, output_chunk_size, run_row_limit, merge_fan_in
+    return (
+        input_path,
+        output_root,
+        target_logs,
+        network_conf,
+        output_chunk_size,
+        run_row_limit,
+        merge_fan_in,
+        auto_validate_conn_output,
+    )
 
 
 def find_target_log_files(log_dir: Path, target_logs: Sequence[str]) -> List[Path]:
@@ -314,12 +354,16 @@ def resolve_csv_value(record: dict, key: str):
     return normalize_value(record.get(key, ""))
 
 
-def build_csv_row(record: dict, header: Sequence[str], network_conf: dict) -> dict | None:
+def build_csv_row_with_reason(
+    record: dict,
+    header: Sequence[str],
+    network_conf: dict,
+) -> tuple[dict | None, str | None]:
     if should_exclude_record(record, network_conf):
-        return None
+        return None, "excluded"
     label = assign_label(record, network_conf)
     if label is None:
-        return None
+        return None, "unlabeled"
     row = {}
     for key in header:
         if key == "daytime":
@@ -328,6 +372,11 @@ def build_csv_row(record: dict, header: Sequence[str], network_conf: dict) -> di
             row[key] = label
         else:
             row[key] = resolve_csv_value(record, key)
+    return row, None
+
+
+def build_csv_row(record: dict, header: Sequence[str], network_conf: dict) -> dict | None:
+    row, _reason = build_csv_row_with_reason(record, header, network_conf)
     return row
 
 
@@ -528,12 +577,13 @@ def flush_run_rows(
     run_rows: list[dict],
     final_header: Sequence[str],
     run_index: int,
-) -> tuple[Path, int]:
+) -> tuple[Path, int, int]:
+    row_count = len(run_rows)
     sort_rows_by_daytime(run_rows)
     run_path = temp_dir / f"run_l0_{run_index:05d}.csv"
     write_rows_to_csv(run_rows, final_header, run_path)
     run_rows.clear()
-    return run_path, run_index + 1
+    return run_path, run_index + 1, row_count
 
 
 def create_initial_sorted_runs(
@@ -542,47 +592,85 @@ def create_initial_sorted_runs(
     network_conf: dict,
     target_log: str,
     run_row_limit: int,
-) -> tuple[list[Path], list[str]]:
+) -> tuple[list[Path], list[str], RunCreationStats]:
     final_header = extend_header_for_target_logs([], [target_log])
     run_paths: list[Path] = []
     run_rows: list[dict] = []
     run_index = 0
-    matched_log_dir_count = 0
-    skipped_invalid_ts_count = 0
-    emitted_row_count = 0
-    for log_dir in log_dirs:
+    stats = RunCreationStats()
+    total_log_dir_count = len(log_dirs)
+    for directory_index, log_dir in enumerate(log_dirs, start=1):
         target_file = log_dir / target_log
         if not target_file.is_file():
             continue
-        matched_log_dir_count += 1
+        stats.matched_log_dir_count += 1
+        dir_scanned_record_count = 0
+        dir_skipped_invalid_ts_count = 0
+        dir_excluded_record_count = 0
+        dir_unlabeled_record_count = 0
+        dir_emitted_row_count = 0
         files = find_target_log_files(log_dir, [target_log])
+        print(
+            f"[log-to-csv] 読み込み開始 ({directory_index}/{total_log_dir_count}): "
+            f"{target_file}"
+        )
         for record in iter_records(files):
+            stats.scanned_record_count += 1
+            dir_scanned_record_count += 1
             if not has_valid_record_timestamp(record):
-                skipped_invalid_ts_count += 1
+                stats.skipped_invalid_ts_count += 1
+                dir_skipped_invalid_ts_count += 1
                 continue
             row_header = extend_header_for_target_logs(collect_record_header(record), [target_log])
             final_header = merge_headers(final_header, row_header)
-            row = build_csv_row(record, row_header, network_conf)
+            row, reason = build_csv_row_with_reason(record, row_header, network_conf)
             if row is None:
+                if reason == "excluded":
+                    stats.excluded_record_count += 1
+                    dir_excluded_record_count += 1
+                elif reason == "unlabeled":
+                    stats.unlabeled_record_count += 1
+                    dir_unlabeled_record_count += 1
                 continue
             run_rows.append(row)
-            emitted_row_count += 1
+            stats.emitted_row_count += 1
+            dir_emitted_row_count += 1
             if len(run_rows) >= run_row_limit:
-                run_path, run_index = flush_run_rows(temp_dir, run_rows, final_header, run_index)
+                run_path, run_index, flushed_row_count = flush_run_rows(
+                    temp_dir, run_rows, final_header, run_index
+                )
                 run_paths.append(run_path)
+                stats.run_count += 1
+                print(
+                    f"[log-to-csv] 一時 run 出力: {run_path.name} / rows={flushed_row_count}"
+                )
+        print(
+            f"[log-to-csv] 読み込み完了: {target_file.name} / record={dir_scanned_record_count} "
+            f"/ 出力行={dir_emitted_row_count} / ts不正={dir_skipped_invalid_ts_count} "
+            f"/ 例外除外={dir_excluded_record_count} / ラベル未確定={dir_unlabeled_record_count}"
+        )
     if run_rows:
-        run_path, run_index = flush_run_rows(temp_dir, run_rows, final_header, run_index)
+        run_path, run_index, flushed_row_count = flush_run_rows(
+            temp_dir, run_rows, final_header, run_index
+        )
         run_paths.append(run_path)
-    if matched_log_dir_count == 0:
+        stats.run_count += 1
+        print(f"[log-to-csv] 一時 run 出力: {run_path.name} / rows={flushed_row_count}")
+    if stats.matched_log_dir_count == 0:
         raise SystemExit(f"No target logs ({target_log}) were found in the discovered log directories.")
-    if emitted_row_count == 0:
-        if skipped_invalid_ts_count > 0:
+    print(
+        f"[log-to-csv] 一時 run 作成完了: run数={stats.run_count} / record={stats.scanned_record_count} "
+        f"/ 出力行={stats.emitted_row_count} / ts不正={stats.skipped_invalid_ts_count} "
+        f"/ 例外除外={stats.excluded_record_count} / ラベル未確定={stats.unlabeled_record_count}"
+    )
+    if stats.emitted_row_count == 0:
+        if stats.skipped_invalid_ts_count > 0:
             raise SystemExit(
                 f"No CSV rows were produced for {target_log}. "
-                f"Skipped {skipped_invalid_ts_count} records because ts/duration were missing or invalid."
+                f"Skipped {stats.skipped_invalid_ts_count} records because ts/duration were missing or invalid."
             )
         raise SystemExit(f"No CSV rows were produced for {target_log} after filtering and labeling.")
-    return run_paths, final_header
+    return run_paths, final_header, stats
 
 
 def merge_run_level(
@@ -611,14 +699,55 @@ def external_merge_sorted_runs_to_chunks(
     current_paths = list(run_paths)
     level = 1
     while len(current_paths) > merge_fan_in:
+        print(
+            f"[log-to-csv] 段階マージ: level={level} / 入力 run 数={len(current_paths)} "
+            f"/ fan-in={merge_fan_in}"
+        )
         next_paths = merge_run_level(current_paths, temp_dir, final_header, merge_fan_in, level)
         for old_path in current_paths:
             old_path.unlink()
         current_paths = next_paths
         level += 1
+    print(
+        f"[log-to-csv] 最終チャンク出力: 入力 run 数={len(current_paths)} / chunk_size={output_chunk_size}"
+    )
     return merge_sorted_csv_group_to_output_chunks(
         current_paths, destination_dir, final_header, output_chunk_size
     )
+
+
+def convert_batch_to_chunked_csv_with_stats(
+    log_dirs: Sequence[Path],
+    destination_dir: Path,
+    network_conf: dict,
+    target_log: str,
+    output_chunk_size: int,
+    run_row_limit: int,
+    merge_fan_in: int,
+) -> tuple[list[Path], RunCreationStats]:
+    temp_dir = destination_dir.parent / f".tmp_log_to_csv_{destination_dir.name}"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        run_paths, final_header, stats = create_initial_sorted_runs(
+            log_dirs, temp_dir, network_conf, target_log, run_row_limit
+        )
+        if destination_dir.exists():
+            shutil.rmtree(destination_dir)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        created_files = external_merge_sorted_runs_to_chunks(
+            run_paths,
+            temp_dir,
+            destination_dir,
+            final_header,
+            output_chunk_size,
+            merge_fan_in,
+        )
+        return created_files, stats
+    finally:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
 
 
 def convert_batch_to_chunked_csv(
@@ -630,44 +759,51 @@ def convert_batch_to_chunked_csv(
     run_row_limit: int,
     merge_fan_in: int,
 ) -> list[Path]:
-    temp_dir = destination_dir.parent / f".tmp_log_to_csv_{destination_dir.name}"
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        run_paths, final_header = create_initial_sorted_runs(
-            log_dirs, temp_dir, network_conf, target_log, run_row_limit
-        )
-        if destination_dir.exists():
-            shutil.rmtree(destination_dir)
-        destination_dir.mkdir(parents=True, exist_ok=True)
-        return external_merge_sorted_runs_to_chunks(
-            run_paths,
-            temp_dir,
-            destination_dir,
-            final_header,
-            output_chunk_size,
-            merge_fan_in,
-        )
-    finally:
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir)
+    created_files, _stats = convert_batch_to_chunked_csv_with_stats(
+        log_dirs,
+        destination_dir,
+        network_conf,
+        target_log,
+        output_chunk_size,
+        run_row_limit,
+        merge_fan_in,
+    )
+    return created_files
 
 
-def main() -> None:
-    parse_args()
-    settings = load_settings()
-    input_path, output_root, target_logs, network_conf, output_chunk_size, run_row_limit, merge_fan_in = resolve_config(settings)
+def should_run_runtime_validation(target_log: str) -> bool:
+    return target_log == "conn.log"
 
+
+def convert_logs_to_csv(
+    input_path: Path,
+    output_root: Path,
+    target_logs: Sequence[str],
+    network_conf: dict,
+    output_chunk_size: int,
+    run_row_limit: int,
+    merge_fan_in: int,
+    *,
+    runtime_settings_path: str | Path = csv_validator.DEFAULT_RUNTIME_SETTINGS_PATH,
+    auto_validate_conn_output: bool = DEFAULT_AUTO_VALIDATE_CONN_OUTPUT,
+) -> list[Path]:
     if output_root.exists() and not output_root.is_dir():
         raise SystemExit(f"Output root exists and is not a directory: {output_root}")
 
     log_dirs, batch_name = discover_log_dirs(input_path, target_logs)
+    print(
+        f"[log-to-csv] 開始: 入力={input_path} / バッチ={batch_name} / "
+        f"対象ログ={', '.join(target_logs)} / ログディレクトリ数={len(log_dirs)}"
+    )
+
     created_output_dirs: list[Path] = []
     for target_log in target_logs:
         target_output_dir = output_root / target_output_dir_name(target_log) / batch_name
         created_output_dirs.append(target_output_dir)
-        created_files = convert_batch_to_chunked_csv(
+        print(
+            f"[log-to-csv] 変換開始: target_log={target_log} / 出力先={target_output_dir}"
+        )
+        created_files, stats = convert_batch_to_chunked_csv_with_stats(
             log_dirs,
             target_output_dir,
             network_conf,
@@ -676,11 +812,62 @@ def main() -> None:
             run_row_limit,
             merge_fan_in,
         )
+        print(
+            f"[log-to-csv] 変換完了: target_log={target_log} / 出力行={stats.emitted_row_count} "
+            f"/ chunk数={len(created_files)} / run数={stats.run_count}"
+        )
         for created_file in created_files:
             print(created_file)
+        if auto_validate_conn_output and should_run_runtime_validation(target_log):
+            print(f"[log-to-csv] runtime契約チェック開始: {target_output_dir}")
+            report = csv_validator.validate_csv_dataset(
+                target_output_dir,
+                schema="zeek",
+                runtime_settings_path=runtime_settings_path,
+                network_conf=network_conf,
+                zeek_settings_path=SETTINGS_PATH,
+            )
+            csv_validator.print_report(report)
+            if not report.ok:
+                raise SystemExit(
+                    f"Converted CSV failed runtime contract validation: {target_output_dir}"
+                )
+        elif should_run_runtime_validation(target_log):
+            print("[log-to-csv] runtime契約チェックを設定で無効化しています")
+        else:
+            print(
+                f"[log-to-csv] runtime契約チェックを省略: {target_log} は make run の標準入力ではありません"
+            )
 
     for created_output_dir in created_output_dirs:
         print(created_output_dir)
+    print(f"[log-to-csv] 完了: 出力ディレクトリ数={len(created_output_dirs)}")
+    return created_output_dirs
+
+
+def main() -> None:
+    parse_args()
+    settings = load_settings()
+    (
+        input_path,
+        output_root,
+        target_logs,
+        network_conf,
+        output_chunk_size,
+        run_row_limit,
+        merge_fan_in,
+        auto_validate_conn_output,
+    ) = resolve_config(settings)
+    convert_logs_to_csv(
+        input_path,
+        output_root,
+        target_logs,
+        network_conf,
+        output_chunk_size,
+        run_row_limit,
+        merge_fan_in,
+        auto_validate_conn_output=auto_validate_conn_output,
+    )
 
 
 if __name__ == "__main__":

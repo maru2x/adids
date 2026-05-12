@@ -11,6 +11,7 @@
 - 入力は `settings.json` の `PcapToLog.INPUT_DIR_PATH` と `PcapToLog.OUTPUT_ROOT_DIR_PATH`
 - Zeek 失敗時はその PCAP をスキップし、最後に失敗一覧をサマリ表示する
 - 入力ディレクトリ配下の `.pcap` / `.pcapng` を**再帰的**に集める
+- `batch_dir` が既にある場合は、対話端末で `使う / 削除して作り直す / 中止する` を確認する
 - 各 PCAP ごとに一時ディレクトリ `.tmp_XXXX_<stem>` を作り、その中で `zeek` を実行する
 - 生成された `.log` の中から最小 `ts` を読み、その JST 時刻を最終ディレクトリ名にする
 - 同名ディレクトリが既にあれば `_01`, `_02` を付けて衝突回避する
@@ -32,9 +33,17 @@
 
 ### `parse_args()`
 
-`argparse` の初期化だけをしている。
-今は実質オプションを持たず、`-h/--help` 用と将来拡張用の器である。
-`main()` の先頭で呼ばれるが、返り値は使っていない。
+`argparse` の初期化を行う。
+既存 `batch_dir` が見つかったときの扱いを明示するため、次のオプションを持つ。
+
+- `--reuse`
+  - 既存ディレクトリをそのまま使う
+- `--replace`
+  - 既存ディレクトリを削除して作り直す
+- `--abort`
+  - 確認せず中止する
+
+未指定なら、対話端末では確認を出し、非対話環境では中止する。
 
 ### `load_settings()`
 
@@ -135,7 +144,7 @@ zeek -r <pcap_file> LogAscii::use_json=T
 2. `load_settings()` と `resolve_config()` で入出力を確定する
 3. `collect_pcap_files()` で対象 PCAP を列挙する
 4. `output_root` が file なら失敗、無ければ `mkdir`
-5. `batch_dir = output_root / input_path.name` を作る
+5. `batch_dir = output_root / input_path.name` を決め、既にあれば利用方法を確認する
 6. 各 PCAP について `.tmp_0001_<stem>` のような一時ディレクトリを作り、その中で `run_zeek()`
 7. Zeek 出力後 `read_first_ts()` で最小 `ts` を取り、`ts_to_name()` で最終ディレクトリ名を決める
 8. `make_unique_dir()` で衝突回避したあと、一時ディレクトリを `rename` して完成
@@ -146,7 +155,10 @@ zeek -r <pcap_file> LogAscii::use_json=T
 
 補足:
 
-- `batch_dir` が既にある場合は stderr に warning を出すだけで続行する
+- `batch_dir` が既にある場合:
+  - 対話端末なら `使う / 削除して作り直す / 中止する` を選べる
+  - 非対話環境なら確認できないので中止する
+- `使う` を選んだ場合、既存の log dir はそのまま残り、後続の `log-to-csv` 入力にも含まれうる
 - 既存成果物を壊さないため、最終ディレクトリ名は衝突回避される
 - 壊れた PCAP に当たっても他の PCAP の処理を継続する
 
@@ -170,7 +182,9 @@ zeek -r <pcap_file> LogAscii::use_json=T
 - `read_first_ts()` の最小 `ts` 選択
 - `ts_to_name()` の JST 変換と fallback
 - `make_unique_dir()` の衝突回避
+- 既存 `batch_dir` に対する対話確認と非対話時の中止
 - `main()` の `.tmp_*` cleanup と最終配置
+- `--reuse` / `--replace` / `--abort` の CLI 上書き
 
 ## 関連ファイル
 

@@ -627,3 +627,111 @@ def test_convert_batch_to_chunked_csv_skips_invalid_ts_and_fails_if_nothing_rema
             run_row_limit=100,
             merge_fan_in=2,
         )
+
+
+def test_convert_logs_to_csv_runs_runtime_validation_for_conn_log(tmp_path, monkeypatch):
+    root = Path(tmp_path)
+    input_dir = root / "logs" / "batch_a"
+    output_root = root / "csv"
+    target_output_dir = output_root / "conn" / "batch_a"
+    created_csv = target_output_dir / "00000_20220101090001.csv"
+    log_dirs = [input_dir / "20220101090000"]
+
+    monkeypatch.setattr(extractor, "discover_log_dirs", lambda *_args, **_kwargs: (log_dirs, "batch_a"))
+    monkeypatch.setattr(
+        extractor,
+        "convert_batch_to_chunked_csv_with_stats",
+        lambda *_args, **_kwargs: ([created_csv], extractor.RunCreationStats(emitted_row_count=1, run_count=1)),
+    )
+
+    called = {"validate": 0, "print": 0}
+
+    def fake_validate(*_args, **_kwargs):
+        called["validate"] += 1
+        return type("FakeReport", (), {"ok": True})()
+
+    def fake_print(_report):
+        called["print"] += 1
+
+    monkeypatch.setattr(extractor.csv_validator, "validate_csv_dataset", fake_validate)
+    monkeypatch.setattr(extractor.csv_validator, "print_report", fake_print)
+
+    created_dirs = extractor.convert_logs_to_csv(
+        input_dir,
+        output_root,
+        ["conn.log"],
+        network_conf(),
+        output_chunk_size=10,
+        run_row_limit=100,
+        merge_fan_in=2,
+    )
+
+    assert created_dirs == [target_output_dir]
+    assert called == {"validate": 1, "print": 1}
+
+
+def test_convert_logs_to_csv_skips_runtime_validation_for_non_conn_logs(tmp_path, monkeypatch):
+    root = Path(tmp_path)
+    input_dir = root / "logs" / "batch_a"
+    output_root = root / "csv"
+    target_output_dir = output_root / "dns" / "batch_a"
+    created_csv = target_output_dir / "00000_20220101090001.csv"
+    log_dirs = [input_dir / "20220101090000"]
+
+    monkeypatch.setattr(extractor, "discover_log_dirs", lambda *_args, **_kwargs: (log_dirs, "batch_a"))
+    monkeypatch.setattr(
+        extractor,
+        "convert_batch_to_chunked_csv_with_stats",
+        lambda *_args, **_kwargs: ([created_csv], extractor.RunCreationStats(emitted_row_count=1, run_count=1)),
+    )
+
+    def fail_validate(*_args, **_kwargs):
+        raise AssertionError("runtime validation should be skipped for non-conn logs")
+
+    monkeypatch.setattr(extractor.csv_validator, "validate_csv_dataset", fail_validate)
+
+    created_dirs = extractor.convert_logs_to_csv(
+        input_dir,
+        output_root,
+        ["dns.log"],
+        network_conf(),
+        output_chunk_size=10,
+        run_row_limit=100,
+        merge_fan_in=2,
+    )
+
+    assert created_dirs == [target_output_dir]
+
+
+def test_convert_logs_to_csv_skips_runtime_validation_when_disabled(tmp_path, monkeypatch):
+    root = Path(tmp_path)
+    input_dir = root / "logs" / "batch_a"
+    output_root = root / "csv"
+    target_output_dir = output_root / "conn" / "batch_a"
+    created_csv = target_output_dir / "00000_20220101090001.csv"
+    log_dirs = [input_dir / "20220101090000"]
+
+    monkeypatch.setattr(extractor, "discover_log_dirs", lambda *_args, **_kwargs: (log_dirs, "batch_a"))
+    monkeypatch.setattr(
+        extractor,
+        "convert_batch_to_chunked_csv_with_stats",
+        lambda *_args, **_kwargs: ([created_csv], extractor.RunCreationStats(emitted_row_count=1, run_count=1)),
+    )
+
+    def fail_validate(*_args, **_kwargs):
+        raise AssertionError("runtime validation should be disabled")
+
+    monkeypatch.setattr(extractor.csv_validator, "validate_csv_dataset", fail_validate)
+
+    created_dirs = extractor.convert_logs_to_csv(
+        input_dir,
+        output_root,
+        ["conn.log"],
+        network_conf(),
+        output_chunk_size=10,
+        run_row_limit=100,
+        merge_fan_in=2,
+        auto_validate_conn_output=False,
+    )
+
+    assert created_dirs == [target_output_dir]

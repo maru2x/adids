@@ -9,6 +9,7 @@
       "OUTPUT_CHUNK_SIZE": 3000,
       "RUN_ROW_LIMIT": 100000,
       "MERGE_FAN_IN": 256,
+      "AUTO_VALIDATE_CONN_OUTPUT": true,
       "TARGET_LOGS": [
           "conn.log"
       ],

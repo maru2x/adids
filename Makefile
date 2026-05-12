@@ -10,6 +10,9 @@ PYTHON ?= python3
 endif
 
 SCHEMA ?= zeek
+PCAP_TO_LOG_ARGS ?=
+LOG_TO_CSV_ARGS ?=
+PCAP_TO_CSV_ARGS ?=
 
 .PHONY: venv
 venv:
@@ -51,11 +54,15 @@ test-all: unit-test test-e2e
 
 .PHONY: pcap-to-log
 pcap-to-log:
-	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py"
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py" $(PCAP_TO_LOG_ARGS)
 
 .PHONY: log-to-csv
 log-to-csv:
-	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/log_to_csv_extractor.py"
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/log_to_csv_extractor.py" $(LOG_TO_CSV_ARGS)
+
+.PHONY: pcap-to-csv
+pcap-to-csv:
+	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/pcap_to_csv_pipeline.py" $(PCAP_TO_CSV_ARGS)
 
 .PHONY: align-mix
 align-mix:

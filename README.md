@@ -34,7 +34,7 @@ make run
 ```text
 adids/
 ├─ AGENTS.md                # 他モデル向けの入口ガイド
-├─ Makefile                 # bootstrap / run / unit-test / test-e2e / test-all / pcap-to-log / log-to-csv
+├─ Makefile                 # bootstrap / run / unit-test / test-e2e / test-all / pcap-to-log / log-to-csv / pcap-to-csv
 ├─ requirements.txt         # 依存の固定
 ├─ .github/workflows/       # GitHub Actions
 ├─ docs/                    # 補足ドキュメント
@@ -59,6 +59,33 @@ adids/
 - 詳細なテスト戦略と現在のカバレッジは [docs/テスト方針.md](docs/テスト方針.md) を参照。
 - よく使うプログラムは`make`コマンドで呼び出せるようにしてある。
 - 補助ユーティリティの使い方は [docs/ユーティリティ利用方法.md](docs/ユーティリティ利用方法.md) を参照。
+
+## Zeek 前処理の基本導線
+
+Zeek モードでは、通常は `conn.log` 由来の leaf CSV ディレクトリを作ってから `make run` に渡す。
+
+安定している流れは次の通り。
+
+```bash
+make pcap-to-log
+make log-to-csv
+make run
+```
+
+この 2 手順をまとめて流したい場合は、次でもよい。
+
+```bash
+make pcap-to-csv
+```
+
+補足:
+
+- `make log-to-csv` は変換中の進捗を標準出力へ出す
+- `make log-to-csv` は `conn.log` 系 CSV を出力したあと、自動で runtime 契約チェックを実行する
+- `make pcap-to-log` / `make pcap-to-csv` で既存の log batch dir が見つかった場合、対話端末なら `使う / 削除して作り直す / 中止する` を確認する
+- 非対話環境で既存 log batch dir の扱いを決めたい場合は、`make pcap-to-log PCAP_TO_LOG_ARGS="--replace"` や `make pcap-to-csv PCAP_TO_CSV_ARGS="--replace"` のように明示指定できる
+- `make validate-csv-dataset` は runtime 契約チェックに加えて、日本語のデータサマリも出す
+- `make run` に渡す `DATASETS_DIR_PATH` は、CSV ファイルだけが並ぶ leaf ディレクトリにする必要がある
 
 ## 運用
 
@@ -95,7 +122,9 @@ make test-all   # unit / e2e テストをまとめて実行
 
 ```bash
 make pcap-to-log # pcapファイルからlogファイルを作成
-make log-to-csv  # logファイルからcsvファイルを作成
+make log-to-csv  # logファイルからcsvファイルを作成し、conn.log 系なら runtime 契約チェックも行う
+make pcap-to-csv # pcap -> log -> csv をまとめて実行する
+make pcap-to-csv PCAP_TO_CSV_ARGS="--replace" # 既存log batch dir を削除してから実行する
 ```
 
 
@@ -103,7 +132,7 @@ make log-to-csv  # logファイルからcsvファイルを作成
 
 ```bash
 make align-mix             # 片側の daytime をもう片側へ合わせてから mixed CSV を作成
-make validate-csv-dataset  # Validate/settings.json の設定で leaf CSV ディレクトリを検査
+make validate-csv-dataset  # Validate/settings.json の設定で leaf CSV ディレクトリを検査し、データサマリも出す
 ```
 
 ### グラフ作成系

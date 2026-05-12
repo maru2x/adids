@@ -1,9 +1,16 @@
+import io
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from src.util.FeatureExtract.Zeek import pcap_to_log_extractor as extractor
+
+
+class FakeTty(io.StringIO):
+    def isatty(self):
+        return True
 
 
 # Input:
@@ -96,6 +103,124 @@ def test_resolve_config_returns_input_and_output_paths(monkeypatch, tmp_path):
     assert output_root == (root / "data/logs/sample").resolve()
 
 
+def test_prompt_existing_batch_dir_action_retries_until_valid_choice(tmp_path):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    stdin = FakeTty("x\nu\n")
+    stdout = FakeTty()
+
+    action = extractor.prompt_existing_batch_dir_action(batch_dir, stdin=stdin, stdout=stdout)
+
+    assert action == "reuse"
+    output = stdout.getvalue()
+    assert "既存のログディレクトリが見つかりました" in output
+    assert "無効な選択です" in output
+
+
+def test_prompt_existing_batch_dir_action_rejects_non_interactive_mode(tmp_path):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+
+    with pytest.raises(SystemExit, match="非対話環境のため確認できません"):
+        extractor.prompt_existing_batch_dir_action(
+            batch_dir,
+            stdin=io.StringIO(),
+            stdout=io.StringIO(),
+        )
+
+
+def test_prepare_batch_dir_reuses_existing_dir_after_confirmation(tmp_path, monkeypatch, capsys):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    existing_file = batch_dir / "keep.txt"
+    existing_file.write_text("keep", encoding="utf-8")
+    monkeypatch.setattr(extractor, "prompt_existing_batch_dir_action", lambda *_args, **_kwargs: "reuse")
+
+    action = extractor.prepare_batch_dir(batch_dir)
+
+    assert action == "reuse"
+    assert existing_file.is_file()
+    assert "既存ディレクトリを再利用します" in capsys.readouterr().out
+
+
+def test_prepare_batch_dir_reuses_existing_dir_with_explicit_action_without_prompt(tmp_path, monkeypatch, capsys):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    existing_file = batch_dir / "keep.txt"
+    existing_file.write_text("keep", encoding="utf-8")
+    monkeypatch.setattr(
+        extractor,
+        "prompt_existing_batch_dir_action",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("prompt should not be called")),
+    )
+
+    action = extractor.prepare_batch_dir(batch_dir, existing_batch_dir_action="reuse")
+
+    assert action == "reuse"
+    assert existing_file.is_file()
+    captured = capsys.readouterr().out
+    assert "既存ディレクトリを再利用します" in captured
+    assert "今回の PCAP だけの結果にはなりません" in captured
+
+
+def test_prepare_batch_dir_replaces_existing_dir_after_confirmation(tmp_path, monkeypatch, capsys):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    (batch_dir / "stale.txt").write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(extractor, "prompt_existing_batch_dir_action", lambda *_args, **_kwargs: "replace")
+
+    action = extractor.prepare_batch_dir(batch_dir)
+
+    assert action == "replace"
+    assert batch_dir.is_dir()
+    assert not any(batch_dir.iterdir())
+    assert "削除して再作成しました" in capsys.readouterr().out
+
+
+def test_prepare_batch_dir_replaces_existing_dir_with_explicit_action_without_prompt(tmp_path, monkeypatch):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    (batch_dir / "stale.txt").write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(
+        extractor,
+        "prompt_existing_batch_dir_action",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("prompt should not be called")),
+    )
+
+    action = extractor.prepare_batch_dir(batch_dir, existing_batch_dir_action="replace")
+
+    assert action == "replace"
+    assert batch_dir.is_dir()
+    assert not any(batch_dir.iterdir())
+
+
+def test_prepare_batch_dir_aborts_when_user_requests_abort(tmp_path, monkeypatch):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    monkeypatch.setattr(extractor, "prompt_existing_batch_dir_action", lambda *_args, **_kwargs: "abort")
+
+    with pytest.raises(SystemExit, match="ユーザー要求により中止しました"):
+        extractor.prepare_batch_dir(batch_dir)
+
+
+def test_prepare_batch_dir_aborts_with_explicit_action_without_prompt(tmp_path, monkeypatch):
+    batch_dir = Path(tmp_path) / "sample_batch"
+    batch_dir.mkdir()
+    monkeypatch.setattr(
+        extractor,
+        "prompt_existing_batch_dir_action",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("prompt should not be called")),
+    )
+
+    with pytest.raises(SystemExit, match="ユーザー要求により中止しました"):
+        extractor.prepare_batch_dir(batch_dir, existing_batch_dir_action="abort")
+
+
+def test_normalize_existing_batch_dir_action_rejects_unknown_value():
+    with pytest.raises(SystemExit, match="Unsupported existing batch dir action"):
+        extractor.normalize_existing_batch_dir_action("keep")
+
+
 # Input:
 # - ts の順序が逆転している log dir
 # Expectation:
@@ -175,6 +300,49 @@ def test_run_zeek_reports_called_process_error(monkeypatch, tmp_path):
 
     with pytest.raises(extractor.ZeekRunError, match="truncated dump file"):
         extractor.run_zeek(Path(tmp_path) / "sample.pcap", Path(tmp_path))
+
+
+def test_main_passes_existing_batch_dir_action_from_cli(tmp_path, monkeypatch, capsys):
+    input_dir = Path(tmp_path) / "pcap" / "sample_batch"
+    input_dir.mkdir(parents=True)
+    (input_dir / "good.pcap").write_bytes(b"good")
+    output_root = Path(tmp_path) / "logs"
+    monkeypatch.setattr(extractor, "parse_args", lambda: SimpleNamespace(existing_batch_dir_action="replace"))
+    monkeypatch.setattr(
+        extractor,
+        "load_settings",
+        lambda: {
+            "PcapToLog": {
+                "INPUT_DIR_PATH": str(input_dir),
+                "OUTPUT_ROOT_DIR_PATH": str(output_root),
+            }
+        },
+    )
+
+    captured = {}
+
+    def fake_convert(input_path, output_root_path, *, existing_batch_dir_action=None):
+        captured["input_path"] = input_path
+        captured["output_root"] = output_root_path
+        captured["existing_batch_dir_action"] = existing_batch_dir_action
+        batch_dir = output_root_path / input_path.name
+        batch_dir.mkdir(parents=True, exist_ok=True)
+        return extractor.PcapToLogResult(
+            batch_dir=batch_dir,
+            created_dirs=[],
+            success_count=0,
+            failures=[],
+            batch_dir_action=existing_batch_dir_action or "create",
+        )
+
+    monkeypatch.setattr(extractor, "convert_pcap_dir_to_logs", fake_convert)
+
+    extractor.main()
+
+    assert captured["input_path"] == input_dir.resolve()
+    assert captured["output_root"] == output_root.resolve()
+    assert captured["existing_batch_dir_action"] == "replace"
+    assert str((output_root / input_dir.name).resolve()) in capsys.readouterr().out
 
 
 def test_main_skips_failed_pcap_and_continues(tmp_path, monkeypatch, capsys):

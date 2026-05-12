@@ -34,8 +34,9 @@ def test_validate_csv_dataset_cli_reports_ok_for_valid_fixture():
         VALIDATE_SETTINGS_PATH.write_text(original_settings, encoding="utf-8")
 
     assert result.returncode == 0
-    assert "[OK]" in result.stdout
-    assert "dataset contract looks valid" in result.stdout
+    assert "[runtime契約チェック]" in result.stdout
+    assert "総合判定: 合格" in result.stdout
+    assert "[データサマリ]" in result.stdout
 
 
 @pytest.mark.e2e
@@ -60,5 +61,6 @@ def test_validate_csv_dataset_cli_reports_ng_for_invalid_fixture():
         VALIDATE_SETTINGS_PATH.write_text(original_settings, encoding="utf-8")
 
     assert result.returncode == 1
-    assert "[NG]" in result.stdout
-    assert "daytime is decreasing across CSV files" in result.stdout
+    assert "[runtime契約チェック]" in result.stdout
+    assert "総合判定: 不合格" in result.stdout
+    assert "CSV ファイル間で daytime が逆行しています" in result.stdout

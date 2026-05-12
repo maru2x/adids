@@ -1,8 +1,8 @@
 {
   "CsvDatasetValidator": {
-    "DATASET_DIR_PATH": "data/csv/zeek/conn/2201AusEast",
-    "SCHEMA": "zeek",
-    "RUNTIME_SETTINGS_PATH": "src/main/settings.json",
-    "ZEEK_SETTINGS_PATH": "src/util/FeatureExtract/Zeek/settings.json"
+      "DATASET_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/csv/zeek/2201Lab02/conn/2201Lab02/",
+      "SCHEMA": "zeek",
+      "RUNTIME_SETTINGS_PATH": "src/main/settings.json",
+      "ZEEK_SETTINGS_PATH": "src/util/FeatureExtract/Zeek/settings.json"
   }
 }

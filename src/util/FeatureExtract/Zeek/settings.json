@@ -1,11 +1,11 @@
 {
   "PcapToLog": {
-      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/pcap/2201AusEast/",
+      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/pcap/2201Lab04/",
       "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/"
   },
   "LogToCsv": {
-      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/2201AusEast/",
-      "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/csv/zeek/",
+      "INPUT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/logs/zeek/2201Lab02/",
+      "OUTPUT_ROOT_DIR_PATH": "/mnt/nas0/g005/murasemaru/data/csv/zeek/2201Lab02",
       "OUTPUT_CHUNK_SIZE": 3000,
       "RUN_ROW_LIMIT": 100000,
       "MERGE_FAN_IN": 256,

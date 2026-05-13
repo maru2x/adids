@@ -31,6 +31,7 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` 
 - `make pcap-to-log`
 - `make log-to-csv`
 - `make pcap-to-csv`
+- `make feature-export`
 
 先述したように、Zeekモードでcsvファイルを出力するために、一度 Zeek.log 形式のログをjsonで出力し、それをcsvに変換するという手順をたどる。
 `pcap-to-log`はpcapファイルをlogファイルに変換するスクリプトで、`log-to-csv`はlogファイルをcsvファイルに変換するスクリプトである。
@@ -39,6 +40,7 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` 
 - `pcap-to-log`: `src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py`
 - `log-to-csv`: `src/util/FeatureExtract/Zeek/log_to_csv_extractor.py`
 - `pcap-to-csv`: `src/util/FeatureExtract/Zeek/pcap_to_csv_pipeline.py`
+- `feature-export`: `src/util/FeatureExtract/Zeek/feature_exporter.py`
 - 拡張子なし PCAP / PCAPNG の補助リネーム: `src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py`
 
 通常運用とは別に、実験や ELK 可視化向けの設定を分けたい場合は、各スクリプトへ `--settings <path>` を渡して専用設定ファイルを使える。
@@ -180,6 +182,45 @@ make pcap-to-csv
 ```bash
 make pcap-to-csv PCAP_TO_CSV_ARGS="--replace"
 ```
+
+#### feature-export の使い方
+
+`feature-export` は、Zeek の `conn.log` から runtime 互換の leaf CSV を直接作る sidecar exporter である。
+既存の `log-to-csv` を置き換えるものではなく、`Simulation` batch と growing live log の両方で、同じ出口スキーマの CSV を作りたいときに使う。
+
+重要:
+
+- 入力にするのは Zeek `conn.log` だけ
+- `cowrie.json` は入力にしない
+- 出力先には CSV ファイルだけが並ぶ leaf ディレクトリを指定する
+- `feature-export` 自体は runtime を live 化しない
+  - あくまで `conn.log -> runtime互換CSV` の供給処理を追加する
+
+batch の `conn.log` を leaf CSV にする例:
+
+```bash
+make feature-export FEATURE_EXPORT_ARGS='batch \
+  --input-dir data/logs/zeek/2201AusEast \
+  --output-dir data/csv/feature_export/2201AusEast \
+  --network-key 202201 \
+  --zeek-settings src/util/FeatureExtract/Zeek/settings.json'
+```
+
+この mode では、batch 全体を `daytime` で再統合し、leaf CSV を作る。
+`log-to-csv` と同様に `NetworkAddress` を使って `label` を決める。
+
+Cowrie live の `conn.log` を増分 export する例:
+
+```bash
+make feature-export FEATURE_EXPORT_ARGS='live \
+  --input-dir data/logs/zeek/live/cowrie/current \
+  --output-dir data/csv/feature_export/cowrie_live \
+  --label 1'
+```
+
+この mode では、`conn.log` の新着行だけを読み、既存の leaf CSV に chunk 単位で追記していく。
+state file は既定で出力先の親ディレクトリに hidden JSON として保存される。
+Cowrie live は最小方針として `label=1` を固定で付ける。
 
 ## 入出力の規約
 

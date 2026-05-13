@@ -1,0 +1,49 @@
+filebeat.inputs:
+  - type: filestream
+    id: cowrie-json-log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/ingest_data/cowrie.json
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+          overwrite_keys: true
+          expand_keys: true
+
+processors:
+  - timestamp:
+      field: timestamp
+      layouts:
+        - "2006-01-02T15:04:05.999999Z07:00"
+        - "2006-01-02T15:04:05Z07:00"
+      ignore_missing: true
+  - add_fields:
+      target: ""
+      fields:
+        source_type: cowrie_app
+        sensor_id: cowrie-honeypot-01
+  - add_fields:
+      target: event
+      fields:
+        dataset: cowrie.app
+        module: cowrie
+  - add_tags:
+      tags: ["cowrie", "app", "honeypot"]
+
+setup.ilm.enabled: false
+setup.template.name: cowrie-app
+setup.template.pattern: cowrie-app-*
+
+setup.kibana:
+  host: ${KIBANA_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+
+output.elasticsearch:
+  hosts: ${ELASTIC_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl.enabled: true
+  ssl.certificate_authorities: ["certs/ca/ca.crt"]
+  index: "cowrie-app-%{+yyyy.MM.dd}"

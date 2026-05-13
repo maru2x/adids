@@ -1,0 +1,53 @@
+filebeat.inputs:
+  - type: filestream
+    id: zeek-simulation-conn-log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/ingest_data/*/*/conn.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+          overwrite_keys: true
+          expand_keys: true
+
+processors:
+  - timestamp:
+      field: ts
+      layouts:
+        - UNIX
+      ignore_missing: true
+  - dissect:
+      tokenizer: "/usr/share/filebeat/ingest_data/%{dataset_id}/%{batch_name}/conn.log"
+      field: log.file.path
+      target_prefix: ""
+      ignore_failure: true
+  - add_fields:
+      target: ""
+      fields:
+        source_type: simulation_pcap
+        sensor_id: pcap-importer-01
+  - add_fields:
+      target: event
+      fields:
+        dataset: zeek.conn
+        module: zeek
+  - add_tags:
+      tags: ["zeek", "conn", "simulation"]
+
+setup.ilm.enabled: false
+setup.template.name: zeek-pcap-simulation
+setup.template.pattern: zeek-pcap-simulation-*
+
+setup.kibana:
+  host: ${KIBANA_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+
+output.elasticsearch:
+  hosts: ${ELASTIC_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl.enabled: true
+  ssl.certificate_authorities: ["certs/ca/ca.crt"]
+  index: "zeek-pcap-simulation-%{+yyyy.MM.dd}"

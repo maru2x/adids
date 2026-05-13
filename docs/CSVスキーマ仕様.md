@@ -188,6 +188,9 @@ Zeek モードを使うなら、まずは `TARGET_LOGS = ["conn.log"]` にして
 data/csv/zeek/conn/<batch_name>
 ```
 
+`feature-export` が出力する `conn.log` 系 leaf CSV も、同じ `zeek` スキーマとして runtime に渡せる前提で作る。
+つまり `make run` に渡すときは、やはり CSV ファイルだけが並ぶ leaf ディレクトリを指定する。
+
 ## 3. `legacy` スキーマ
 
 ### 想定用途

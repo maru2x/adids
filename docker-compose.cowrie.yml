@@ -1,0 +1,26 @@
+services:
+  cowrie:
+    image: cowrie/cowrie
+    restart: unless-stopped
+    ports:
+      - "2222:2222"
+    volumes:
+      - "./cowrie/var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie"
+      - "./cowrie/var/lib/cowrie:/cowrie/cowrie-git/var/lib/cowrie"
+
+  zeek-cowrie-live:
+    depends_on:
+      cowrie:
+        condition: service_started
+    image: zeek/zeek:8.0.5
+    restart: unless-stopped
+    network_mode: "service:cowrie"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - "./data/logs/zeek/live/cowrie:/logs"
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - mkdir -p /logs/current && cd /logs/current && exec /usr/local/zeek/bin/zeek -i eth0 LogAscii::use_json=T

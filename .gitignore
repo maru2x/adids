@@ -10,3 +10,7 @@ other/
 *.pyc
 __pycache__/
 .venv/
+cowrie/var/log/cowrie/*
+!cowrie/var/log/cowrie/.gitkeep
+cowrie/var/lib/cowrie/*
+!cowrie/var/lib/cowrie/.gitkeep

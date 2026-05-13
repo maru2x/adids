@@ -49,33 +49,55 @@ def parse_args() -> argparse.Namespace:
             "the current batch layout."
         )
     )
+    parser.add_argument(
+        "--settings",
+        dest="settings_path",
+        help="利用する settings.json の path を明示指定する",
+    )
     return parser.parse_args()
 
 
-def load_settings() -> dict:
-    if not SETTINGS_PATH.is_file():
-        raise SystemExit(f"Settings file not found: {SETTINGS_PATH}")
-    with SETTINGS_PATH.open("r", encoding="utf-8") as fh:
+def resolve_settings_path(settings_path_arg: str | None) -> Path:
+    if not settings_path_arg:
+        return SETTINGS_PATH
+    raw_path = Path(settings_path_arg).expanduser()
+    if raw_path.is_absolute():
+        return raw_path.resolve()
+    return (PROJECT_ROOT / raw_path).resolve()
+
+
+def load_settings(settings_path: Path = SETTINGS_PATH) -> dict:
+    if not settings_path.is_file():
+        raise SystemExit(f"Settings file not found: {settings_path}")
+    with settings_path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def resolve_repo_path(path_str: str, *, field_name: str) -> Path:
+def resolve_repo_path(
+    path_str: str,
+    *,
+    field_name: str,
+    settings_path: Path = SETTINGS_PATH,
+) -> Path:
     if not path_str:
-        raise SystemExit(f"{field_name} is required in {SETTINGS_PATH}")
+        raise SystemExit(f"{field_name} is required in {settings_path}")
     raw_path = Path(path_str).expanduser()
     if raw_path.is_absolute():
         return raw_path.resolve()
     return (PROJECT_ROOT / raw_path).resolve()
 
 
-def normalize_target_logs(target_logs: object) -> list[str]:
+def normalize_target_logs(
+    target_logs: object,
+    settings_path: Path = SETTINGS_PATH,
+) -> list[str]:
     if not isinstance(target_logs, list) or not target_logs:
-        raise SystemExit(f"LogToCsv.TARGET_LOGS must be a non-empty array in {SETTINGS_PATH}")
+        raise SystemExit(f"LogToCsv.TARGET_LOGS must be a non-empty array in {settings_path}")
     normalized: list[str] = []
     seen: set[str] = set()
     for value in target_logs:
         if not isinstance(value, str) or not value.strip():
-            raise SystemExit(f"LogToCsv.TARGET_LOGS must contain non-empty strings in {SETTINGS_PATH}")
+            raise SystemExit(f"LogToCsv.TARGET_LOGS must contain non-empty strings in {settings_path}")
         name = value.strip()
         if name not in seen:
             seen.add(name)
@@ -83,86 +105,113 @@ def normalize_target_logs(target_logs: object) -> list[str]:
     return normalized
 
 
-def resolve_network_config(settings: dict, network_key: str) -> dict:
+def resolve_network_config(
+    settings: dict,
+    network_key: str,
+    settings_path: Path = SETTINGS_PATH,
+) -> dict:
     network_map = settings.get("NetworkAddress")
     if not isinstance(network_map, dict):
-        raise SystemExit(f"NetworkAddress section not found in {SETTINGS_PATH}")
+        raise SystemExit(f"NetworkAddress section not found in {settings_path}")
     network_conf = network_map.get(network_key)
     if not isinstance(network_conf, dict):
-        raise SystemExit(f"NetworkAddress '{network_key}' not found in {SETTINGS_PATH}")
+        raise SystemExit(f"NetworkAddress '{network_key}' not found in {settings_path}")
     return network_conf
 
 
-def resolve_output_chunk_size(value: object) -> int:
+def resolve_output_chunk_size(value: object, settings_path: Path = SETTINGS_PATH) -> int:
     if value is None:
         return DEFAULT_OUTPUT_CHUNK_SIZE
     if isinstance(value, bool):
-        raise SystemExit(f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {SETTINGS_PATH}")
+        raise SystemExit(f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {settings_path}")
     try:
         chunk_size = int(value)
     except (TypeError, ValueError) as exc:
         raise SystemExit(
-            f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {SETTINGS_PATH}"
+            f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {settings_path}"
         ) from exc
     if chunk_size <= 0:
-        raise SystemExit(f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {SETTINGS_PATH}")
+        raise SystemExit(f"LogToCsv.OUTPUT_CHUNK_SIZE must be a positive integer in {settings_path}")
     return chunk_size
 
 
-def resolve_positive_int(value: object, *, field_name: str, default: int) -> int:
+def resolve_positive_int(
+    value: object,
+    *,
+    field_name: str,
+    default: int,
+    settings_path: Path = SETTINGS_PATH,
+) -> int:
     if value is None:
         return default
     if isinstance(value, bool):
-        raise SystemExit(f"{field_name} must be a positive integer in {SETTINGS_PATH}")
+        raise SystemExit(f"{field_name} must be a positive integer in {settings_path}")
     try:
         parsed = int(value)
     except (TypeError, ValueError) as exc:
-        raise SystemExit(f"{field_name} must be a positive integer in {SETTINGS_PATH}") from exc
+        raise SystemExit(f"{field_name} must be a positive integer in {settings_path}") from exc
     if parsed <= 0:
-        raise SystemExit(f"{field_name} must be a positive integer in {SETTINGS_PATH}")
+        raise SystemExit(f"{field_name} must be a positive integer in {settings_path}")
     return parsed
 
 
-def resolve_bool(value: object, *, field_name: str, default: bool) -> bool:
+def resolve_bool(
+    value: object,
+    *,
+    field_name: str,
+    default: bool,
+    settings_path: Path = SETTINGS_PATH,
+) -> bool:
     if value is None:
         return default
     if isinstance(value, bool):
         return value
-    raise SystemExit(f"{field_name} must be a boolean in {SETTINGS_PATH}")
+    raise SystemExit(f"{field_name} must be a boolean in {settings_path}")
 
 
-def resolve_config(settings: dict) -> tuple[Path, Path, list[str], dict, int, int, int, bool]:
+def resolve_config(
+    settings: dict,
+    settings_path: Path = SETTINGS_PATH,
+) -> tuple[Path, Path, list[str], dict, int, int, int, bool]:
     section = settings.get("LogToCsv")
     if not isinstance(section, dict):
-        raise SystemExit(f"LogToCsv section not found in {SETTINGS_PATH}")
-    input_path = resolve_repo_path(section.get("INPUT_DIR_PATH", ""), field_name="LogToCsv.INPUT_DIR_PATH")
+        raise SystemExit(f"LogToCsv section not found in {settings_path}")
+    input_path = resolve_repo_path(
+        section.get("INPUT_DIR_PATH", ""),
+        field_name="LogToCsv.INPUT_DIR_PATH",
+        settings_path=settings_path,
+    )
     output_root = resolve_repo_path(
         section.get("OUTPUT_ROOT_DIR_PATH", ""),
         field_name="LogToCsv.OUTPUT_ROOT_DIR_PATH",
+        settings_path=settings_path,
     )
-    target_logs = normalize_target_logs(section.get("TARGET_LOGS"))
+    target_logs = normalize_target_logs(section.get("TARGET_LOGS"), settings_path)
     network_key = section.get("NETWORK_KEY")
     if not isinstance(network_key, str) or not network_key.strip():
-        raise SystemExit(f"LogToCsv.NETWORK_KEY is required in {SETTINGS_PATH}")
-    network_conf = resolve_network_config(settings, network_key.strip())
-    output_chunk_size = resolve_output_chunk_size(section.get("OUTPUT_CHUNK_SIZE"))
+        raise SystemExit(f"LogToCsv.NETWORK_KEY is required in {settings_path}")
+    network_conf = resolve_network_config(settings, network_key.strip(), settings_path)
+    output_chunk_size = resolve_output_chunk_size(section.get("OUTPUT_CHUNK_SIZE"), settings_path)
     run_row_limit = resolve_positive_int(
         section.get("RUN_ROW_LIMIT"),
         field_name="LogToCsv.RUN_ROW_LIMIT",
         default=DEFAULT_RUN_ROW_LIMIT,
+        settings_path=settings_path,
     )
     merge_fan_in = resolve_positive_int(
         section.get("MERGE_FAN_IN"),
         field_name="LogToCsv.MERGE_FAN_IN",
         default=DEFAULT_MERGE_FAN_IN,
+        settings_path=settings_path,
     )
     auto_validate_conn_output = resolve_bool(
         section.get("AUTO_VALIDATE_CONN_OUTPUT"),
         field_name="LogToCsv.AUTO_VALIDATE_CONN_OUTPUT",
         default=DEFAULT_AUTO_VALIDATE_CONN_OUTPUT,
+        settings_path=settings_path,
     )
     if merge_fan_in < 2:
-        raise SystemExit(f"LogToCsv.MERGE_FAN_IN must be at least 2 in {SETTINGS_PATH}")
+        raise SystemExit(f"LogToCsv.MERGE_FAN_IN must be at least 2 in {settings_path}")
     return (
         input_path,
         output_root,
@@ -786,6 +835,7 @@ def convert_logs_to_csv(
     *,
     runtime_settings_path: str | Path = csv_validator.DEFAULT_RUNTIME_SETTINGS_PATH,
     auto_validate_conn_output: bool = DEFAULT_AUTO_VALIDATE_CONN_OUTPUT,
+    zeek_settings_path: str | Path = SETTINGS_PATH,
 ) -> list[Path]:
     if output_root.exists() and not output_root.is_dir():
         raise SystemExit(f"Output root exists and is not a directory: {output_root}")
@@ -825,7 +875,7 @@ def convert_logs_to_csv(
                 schema="zeek",
                 runtime_settings_path=runtime_settings_path,
                 network_conf=network_conf,
-                zeek_settings_path=SETTINGS_PATH,
+                zeek_settings_path=zeek_settings_path,
             )
             csv_validator.print_report(report)
             if not report.ok:
@@ -846,8 +896,10 @@ def convert_logs_to_csv(
 
 
 def main() -> None:
-    parse_args()
-    settings = load_settings()
+    args = parse_args()
+    settings_path_arg = getattr(args, "settings_path", None)
+    settings_path = resolve_settings_path(settings_path_arg)
+    settings = load_settings(settings_path) if settings_path_arg else load_settings()
     (
         input_path,
         output_root,
@@ -857,7 +909,7 @@ def main() -> None:
         run_row_limit,
         merge_fan_in,
         auto_validate_conn_output,
-    ) = resolve_config(settings)
+    ) = resolve_config(settings, settings_path)
     convert_logs_to_csv(
         input_path,
         output_root,
@@ -867,6 +919,7 @@ def main() -> None:
         run_row_limit,
         merge_fan_in,
         auto_validate_conn_output=auto_validate_conn_output,
+        zeek_settings_path=settings_path,
     )
 
 

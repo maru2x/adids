@@ -49,6 +49,11 @@ def parse_args() -> argparse.Namespace:
             "the current batch layout."
         )
     )
+    parser.add_argument(
+        "--settings",
+        dest="settings_path",
+        help="利用する settings.json の path を明示指定する",
+    )
     add_existing_batch_dir_args(parser)
     return parser.parse_args()
 
@@ -87,30 +92,49 @@ def normalize_existing_batch_dir_action(action: str | None) -> str | None:
     return action
 
 
-def load_settings() -> dict:
-    if not SETTINGS_PATH.is_file():
-        raise SystemExit(f"Settings file not found: {SETTINGS_PATH}")
-    with SETTINGS_PATH.open("r", encoding="utf-8") as fh:
+def resolve_settings_path(settings_path_arg: str | None) -> Path:
+    if not settings_path_arg:
+        return SETTINGS_PATH
+    raw_path = Path(settings_path_arg).expanduser()
+    if raw_path.is_absolute():
+        return raw_path.resolve()
+    return (PROJECT_ROOT / raw_path).resolve()
+
+
+def load_settings(settings_path: Path = SETTINGS_PATH) -> dict:
+    if not settings_path.is_file():
+        raise SystemExit(f"Settings file not found: {settings_path}")
+    with settings_path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def resolve_repo_path(path_str: str, *, field_name: str) -> Path:
+def resolve_repo_path(
+    path_str: str,
+    *,
+    field_name: str,
+    settings_path: Path = SETTINGS_PATH,
+) -> Path:
     if not path_str:
-        raise SystemExit(f"{field_name} is required in {SETTINGS_PATH}")
+        raise SystemExit(f"{field_name} is required in {settings_path}")
     raw_path = Path(path_str).expanduser()
     if raw_path.is_absolute():
         return raw_path.resolve()
     return (PROJECT_ROOT / raw_path).resolve()
 
 
-def resolve_config(settings: dict) -> tuple[Path, Path]:
+def resolve_config(settings: dict, settings_path: Path = SETTINGS_PATH) -> tuple[Path, Path]:
     section = settings.get("PcapToLog")
     if not isinstance(section, dict):
-        raise SystemExit(f"PcapToLog section not found in {SETTINGS_PATH}")
-    input_path = resolve_repo_path(section.get("INPUT_DIR_PATH", ""), field_name="PcapToLog.INPUT_DIR_PATH")
+        raise SystemExit(f"PcapToLog section not found in {settings_path}")
+    input_path = resolve_repo_path(
+        section.get("INPUT_DIR_PATH", ""),
+        field_name="PcapToLog.INPUT_DIR_PATH",
+        settings_path=settings_path,
+    )
     output_root = resolve_repo_path(
         section.get("OUTPUT_ROOT_DIR_PATH", ""),
         field_name="PcapToLog.OUTPUT_ROOT_DIR_PATH",
+        settings_path=settings_path,
     )
     return input_path, output_root
 
@@ -357,8 +381,10 @@ def convert_pcap_dir_to_logs(
 
 def main() -> None:
     args = parse_args()
-    settings = load_settings()
-    input_path, output_root = resolve_config(settings)
+    settings_path_arg = getattr(args, "settings_path", None)
+    settings_path = resolve_settings_path(settings_path_arg)
+    settings = load_settings(settings_path) if settings_path_arg else load_settings()
+    input_path, output_root = resolve_config(settings, settings_path)
     result = convert_pcap_dir_to_logs(
         input_path,
         output_root,

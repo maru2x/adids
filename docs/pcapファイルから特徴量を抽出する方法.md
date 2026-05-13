@@ -41,6 +41,9 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` 
 - `pcap-to-csv`: `src/util/FeatureExtract/Zeek/pcap_to_csv_pipeline.py`
 - 拡張子なし PCAP / PCAPNG の補助リネーム: `src/util/FeatureExtract/Zeek/normalize_pcap_extensions.py`
 
+通常運用とは別に、実験や ELK 可視化向けの設定を分けたい場合は、各スクリプトへ `--settings <path>` を渡して専用設定ファイルを使える。
+たとえば IoT-23 / ELK 用には `src/util/FeatureExtract/Zeek/settings_iot23_elk.json` を用意している。
+
 `pcap-to-log` は拡張子が `.pcap` または `.pcapng` のファイルを再帰収集する。
 そのため、拡張子なしの PCAP / PCAPNG が混ざっている場合は、事前に補助スクリプトで `.pcap` / `.pcapng` を付けてから `make pcap-to-log` を実行する。
 
@@ -100,6 +103,17 @@ data/zeek/
       ...
 ```
 
+専用設定を使う場合は、`make` に引数を渡すか、Python スクリプトを直接実行する。
+
+```bash
+make pcap-to-log PCAP_TO_LOG_ARGS="--settings src/util/FeatureExtract/Zeek/settings_iot23_elk.json"
+```
+
+```bash
+python3 src/util/FeatureExtract/Zeek/pcap_to_log_extractor.py \
+  --settings src/util/FeatureExtract/Zeek/settings_iot23_elk.json
+```
+
 #### log-to-csvの使い方
 
 設定項目：
@@ -116,6 +130,12 @@ data/zeek/
 
 ```bash
 make log-to-csv
+```
+
+専用設定を使う場合:
+
+```bash
+make log-to-csv LOG_TO_CSV_ARGS="--settings src/util/FeatureExtract/Zeek/settings_iot23_elk.json"
 ```
 
 このコマンドでは、入力が単一ログディレクトリならその1件をCSVにし、入力がログバッチディレクトリなら配下の各ログディレクトリをまとめてCSV化する。

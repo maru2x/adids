@@ -1,0 +1,43 @@
+filebeat.inputs:
+  - type: filestream
+    id: zeek-conn-log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/ingest_data/*/*/conn.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+          overwrite_keys: true
+          expand_keys: true
+
+processors:
+  - timestamp:
+      field: ts
+      layouts:
+        - UNIX
+      ignore_missing: true
+  - add_fields:
+      target: event
+      fields:
+        dataset: zeek.conn
+        module: zeek
+  - add_tags:
+      tags: ["zeek", "conn"]
+
+setup.ilm.enabled: false
+setup.template.name: adids-zeek-conn
+setup.template.pattern: adids-zeek-conn*
+
+setup.kibana:
+  host: ${KIBANA_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+
+output.elasticsearch:
+  hosts: ${ELASTIC_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl.enabled: true
+  ssl.certificate_authorities: ["certs/ca/ca.crt"]
+  index: "adids-zeek-conn"

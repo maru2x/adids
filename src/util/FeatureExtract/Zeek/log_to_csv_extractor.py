@@ -26,6 +26,10 @@ DEFAULT_RUN_ROW_LIMIT = 100000
 DEFAULT_MERGE_FAN_IN = 256
 DEFAULT_AUTO_VALIDATE_CONN_OUTPUT = True
 
+
+def current_settings_path(settings_path: Path | None = None) -> Path:
+    return SETTINGS_PATH if settings_path is None else settings_path
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from src.util.Validate import validate_csv_dataset as csv_validator
@@ -66,7 +70,8 @@ def resolve_settings_path(settings_path_arg: str | None) -> Path:
     return (PROJECT_ROOT / raw_path).resolve()
 
 
-def load_settings(settings_path: Path = SETTINGS_PATH) -> dict:
+def load_settings(settings_path: Path | None = None) -> dict:
+    settings_path = current_settings_path(settings_path)
     if not settings_path.is_file():
         raise SystemExit(f"Settings file not found: {settings_path}")
     with settings_path.open("r", encoding="utf-8") as fh:
@@ -77,8 +82,9 @@ def resolve_repo_path(
     path_str: str,
     *,
     field_name: str,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> Path:
+    settings_path = current_settings_path(settings_path)
     if not path_str:
         raise SystemExit(f"{field_name} is required in {settings_path}")
     raw_path = Path(path_str).expanduser()
@@ -89,8 +95,9 @@ def resolve_repo_path(
 
 def normalize_target_logs(
     target_logs: object,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> list[str]:
+    settings_path = current_settings_path(settings_path)
     if not isinstance(target_logs, list) or not target_logs:
         raise SystemExit(f"LogToCsv.TARGET_LOGS must be a non-empty array in {settings_path}")
     normalized: list[str] = []
@@ -108,8 +115,9 @@ def normalize_target_logs(
 def resolve_network_config(
     settings: dict,
     network_key: str,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> dict:
+    settings_path = current_settings_path(settings_path)
     network_map = settings.get("NetworkAddress")
     if not isinstance(network_map, dict):
         raise SystemExit(f"NetworkAddress section not found in {settings_path}")
@@ -119,7 +127,8 @@ def resolve_network_config(
     return network_conf
 
 
-def resolve_output_chunk_size(value: object, settings_path: Path = SETTINGS_PATH) -> int:
+def resolve_output_chunk_size(value: object, settings_path: Path | None = None) -> int:
+    settings_path = current_settings_path(settings_path)
     if value is None:
         return DEFAULT_OUTPUT_CHUNK_SIZE
     if isinstance(value, bool):
@@ -140,8 +149,9 @@ def resolve_positive_int(
     *,
     field_name: str,
     default: int,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> int:
+    settings_path = current_settings_path(settings_path)
     if value is None:
         return default
     if isinstance(value, bool):
@@ -160,8 +170,9 @@ def resolve_bool(
     *,
     field_name: str,
     default: bool,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> bool:
+    settings_path = current_settings_path(settings_path)
     if value is None:
         return default
     if isinstance(value, bool):
@@ -171,8 +182,9 @@ def resolve_bool(
 
 def resolve_config(
     settings: dict,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> tuple[Path, Path, list[str], dict, int, int, int, bool]:
+    settings_path = current_settings_path(settings_path)
     section = settings.get("LogToCsv")
     if not isinstance(section, dict):
         raise SystemExit(f"LogToCsv section not found in {settings_path}")

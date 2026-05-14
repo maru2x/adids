@@ -4,7 +4,7 @@
 
 `adids` is an adaptive IDS for gateway-monitored IoT traffic.
 
-The repository currently has two practical parts:
+The repository currently has three practical parts:
 
 1. Feature extraction
    - `Legacy`: direct `pcap -> csv`
@@ -14,6 +14,11 @@ The repository currently has two practical parts:
    - runs inference
    - optionally retrains models
    - writes results under `exp/`
+3. Live PoC runtime
+   - tails Zeek `conn.log` through `feature-export live`
+   - reads only newly exported CSV rows
+   - runs inference with an existing model
+   - prints console alerts for matching flows
 
 For new work, assume **Zeek mode is the primary path** unless the user explicitly asks for Legacy.
 
@@ -24,9 +29,13 @@ The most stable end-to-end flow right now is:
 1. Edit `src/util/FeatureExtract/Zeek/settings.json`
 2. Run `make pcap-to-log`
 3. Run `make log-to-csv`
-4. Edit `src/main/settings.json`
+4. Edit `src/main/Simulation/settings.json`
 5. Set `DATASETS_DIR_PATH` to a **leaf CSV directory** such as `data/csv/zeek/conn/2201AusEast`
 6. Run `make run`
+
+Notes:
+- `src/main/settings.json` is kept as a compatibility mirror for older helpers, but new simulation edits should target `src/main/Simulation/settings.json`
+- `make run-live` uses the separate `src/main/Live/settings.json`
 
 Important:
 - `DATASETS_DIR_PATH` must point to a directory that contains **CSV files only**
@@ -94,15 +103,21 @@ A change is not done until all of the following are true:
 
 ### Runtime
 
+- `src/main/Simulation/run.py`
+- `src/main/Simulation/settings.json`
+- `src/main/Simulation/settings_loader.py`
+- `src/main/Simulation/session_controller.py`
+- `src/main/Simulation/session_definer.py`
+- `src/main/Simulation/drift_detection.py`
+- `src/main/Simulation/model_factory.py`
+- `src/main/Simulation/trainer.py`
+- `src/main/Simulation/evaluator.py`
+- `src/main/Live/run.py`
+- `src/main/Live/runtime.py`
+- `src/main/Live/settings.json`
+- `src/main/Live/settings_loader.py`
 - `src/main/run.py`
 - `src/main/settings.json`
-- `src/main/settings_loader.py`
-- `src/main/session_controller.py`
-- `src/main/session_definer.py`
-- `src/main/drift_detection.py`
-- `src/main/model_factory.py`
-- `src/main/trainer.py`
-- `src/main/evaluator.py`
 
 ### Feature extraction
 
@@ -187,7 +202,7 @@ If it points at `data/csv`, `data/csv/zeek`, or `data/csv/zeek/conn`, `make run`
 
 `RETRAINING_MODE = "dy"` with `ENSEMBLE_METHOD_CODE = 0` is currently unsafe.
 The current implementation casts raw sigmoid probabilities with `int()`, so `0.7` becomes `0`.
-If you touch dynamic mode, inspect `src/main/drift_detection.py` first.
+If you touch dynamic mode, inspect `src/main/Simulation/drift_detection.py` first.
 
 ### Trap 3: model support is uneven
 
@@ -215,7 +230,7 @@ GitHub Actions currently runs three jobs:
   - `pytest tests/e2e/feature_extract -q`
   - uses the official `zeek/zeek:8.0.5` Debian-based image
 - `e2e_runtime`
-  - `pytest tests/e2e/runtime -q`
+  - `pytest tests/e2e/runtime tests/e2e/live -q`
 
 `make unit-test` performs a Python syntax pass with `compileall`, then runs the unit tests via `pytest`.
 
@@ -231,11 +246,13 @@ Current coverage:
 - `tests/e2e/feature_extract/test_zeek_scenario_golden.py` protocol-specific `dns.log` / `ssl.log` expected CSV comparisons
 - `tests/e2e/feature_extract/test_zeek_bulk_golden.py` multi-pcap batch expected CSV comparisons
 - `tests/e2e/runtime/test_run_smoke.py` minimal runtime smoke coverage
+- `tests/e2e/live/test_run_live_poc.py` live PoC console alert coverage
 
 CI currently does **not** cover:
 - Legacy mode
 - long-running or large real-world datasets
 - more rigorous `make run` expectation checks beyond the smoke tests
+- long-running `make run-live` stability under repeated polling
 - dynamic mode prediction aggregation correctness
 
 Optional local coverage:
@@ -266,6 +283,14 @@ make log-to-csv
 
 ```bash
 make run
+```
+
+### Run live PoC
+
+```bash
+make prepare-live-demo-model
+make demo-live-up
+make run-live
 ```
 
 ## 8. If You Need the Full Context

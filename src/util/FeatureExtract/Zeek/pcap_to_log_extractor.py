@@ -20,6 +20,10 @@ PROJECT_ROOT = SCRIPT_DIR.parents[3]
 SETTINGS_PATH = SCRIPT_DIR / "settings.json"
 
 
+def current_settings_path(settings_path: Path | None = None) -> Path:
+    return SETTINGS_PATH if settings_path is None else settings_path
+
+
 @dataclass
 class ZeekRunError(Exception):
     pcap_file: Path
@@ -101,7 +105,8 @@ def resolve_settings_path(settings_path_arg: str | None) -> Path:
     return (PROJECT_ROOT / raw_path).resolve()
 
 
-def load_settings(settings_path: Path = SETTINGS_PATH) -> dict:
+def load_settings(settings_path: Path | None = None) -> dict:
+    settings_path = current_settings_path(settings_path)
     if not settings_path.is_file():
         raise SystemExit(f"Settings file not found: {settings_path}")
     with settings_path.open("r", encoding="utf-8") as fh:
@@ -112,8 +117,9 @@ def resolve_repo_path(
     path_str: str,
     *,
     field_name: str,
-    settings_path: Path = SETTINGS_PATH,
+    settings_path: Path | None = None,
 ) -> Path:
+    settings_path = current_settings_path(settings_path)
     if not path_str:
         raise SystemExit(f"{field_name} is required in {settings_path}")
     raw_path = Path(path_str).expanduser()
@@ -122,7 +128,8 @@ def resolve_repo_path(
     return (PROJECT_ROOT / raw_path).resolve()
 
 
-def resolve_config(settings: dict, settings_path: Path = SETTINGS_PATH) -> tuple[Path, Path]:
+def resolve_config(settings: dict, settings_path: Path | None = None) -> tuple[Path, Path]:
+    settings_path = current_settings_path(settings_path)
     section = settings.get("PcapToLog")
     if not isinstance(section, dict):
         raise SystemExit(f"PcapToLog section not found in {settings_path}")

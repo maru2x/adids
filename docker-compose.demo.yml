@@ -1,0 +1,26 @@
+services:
+  fake_iot_device:
+    build:
+      context: ./demo/fake_iot_device
+    container_name: fake_iot_device
+    restart: unless-stopped
+    ports:
+      - "2223:2222"
+
+  zeek-local-live:
+    depends_on:
+      fake_iot_device:
+        condition: service_started
+    image: zeek/zeek:8.0.5
+    container_name: zeek-local-live
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - "./data/logs/zeek/live/local_iot:/logs"
+      - "./demo/zeek_local_live_entrypoint.sh:/zeek_local_live_entrypoint.sh:ro"
+    entrypoint:
+      - /bin/sh
+      - /zeek_local_live_entrypoint.sh

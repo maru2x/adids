@@ -88,4 +88,4 @@ jobs:
 
       - name: Run runtime e2e tests
         run: |
-          .venv/bin/python -m pytest tests/e2e/runtime -q
+          .venv/bin/python -m pytest tests/e2e/runtime tests/e2e/live -q

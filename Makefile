@@ -16,6 +16,7 @@ LOG_TO_CSV_ARGS ?=
 PCAP_TO_CSV_ARGS ?=
 FEATURE_EXPORT_ARGS ?=
 COWRIE_DOCKER_COMPOSE := docker compose -p adids-cowrie -f "$(ROOT_DIR)/docker-compose.cowrie.yml"
+DEMO_DOCKER_COMPOSE := docker compose -p adids-demo -f "$(ROOT_DIR)/docker-compose.demo.yml"
 KIBANA_COWRIE_LIVE_DASHBOARD_NDJSON := $(ROOT_DIR)/docs/kibana_saved_objects/cowrie_live_attack_monitoring.ndjson
 ES_COWRIE_LIVE_ENRICH_PIPELINE_JSON := $(ROOT_DIR)/filebeat/cowrie_live_enrich_pipeline.json
 ES_COWRIE_LIVE_ENRICH_PIPELINE_ID := zeek-cowrie-live-enrich-v1
@@ -123,7 +124,15 @@ cowrie-ps:
 
 .PHONY: run
 run:
-	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" run.py
+	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" -m Simulation.run
+
+.PHONY: run-live
+run-live:
+	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" -m Live.run
+
+.PHONY: prepare-live-demo-model
+prepare-live-demo-model:
+	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" -m Live.prepare_demo_model
 
 .PHONY: unit-test
 unit-test:
@@ -156,6 +165,27 @@ pcap-to-csv:
 .PHONY: feature-export
 feature-export:
 	@"$(PYTHON)" "$(ROOT_DIR)/src/util/FeatureExtract/Zeek/feature_exporter.py" $(FEATURE_EXPORT_ARGS)
+
+.PHONY: demo-live-up
+demo-live-up:
+	@mkdir -p "$(ROOT_DIR)/data/logs/zeek/live/local_iot/current" "$(ROOT_DIR)/data/csv/live/local_iot_demo" "$(ROOT_DIR)/data/live/state"
+	@$(DEMO_DOCKER_COMPOSE) up -d --build
+
+.PHONY: demo-live-reset
+demo-live-reset:
+	@/bin/sh "$(ROOT_DIR)/demo/reset_live_demo_state.sh"
+
+.PHONY: demo-live-down
+demo-live-down:
+	@$(DEMO_DOCKER_COMPOSE) down
+
+.PHONY: demo-live-ps
+demo-live-ps:
+	@$(DEMO_DOCKER_COMPOSE) ps
+
+.PHONY: demo-live-inject-alert
+demo-live-inject-alert:
+	@/bin/sh "$(ROOT_DIR)/demo/inject_live_demo_conn_log.sh"
 
 .PHONY: align-mix
 align-mix:

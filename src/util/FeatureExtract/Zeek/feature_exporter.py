@@ -487,20 +487,27 @@ def iter_new_live_records(conn_log_path: Path, state: LiveExportState) -> tuple[
         state.current_chunk_first_daytime = None
 
     records: list[dict] = []
+    new_offset = state.offset
     with conn_log_path.open("rb") as fh:
         fh.seek(state.offset)
         while True:
+            line_start_offset = fh.tell()
             line = fh.readline()
             if not line:
                 break
             stripped = line.strip()
             if not stripped:
+                new_offset = fh.tell()
                 continue
             try:
                 records.append(json.loads(stripped.decode("utf-8")))
+                new_offset = fh.tell()
             except json.JSONDecodeError as exc:
+                line_end_offset = fh.tell()
+                if line_end_offset == stat.st_size and not line.endswith(b"\n"):
+                    new_offset = line_start_offset
+                    break
                 raise SystemExit(f"Invalid JSON in live conn.log at byte offset {fh.tell()}: {exc}") from exc
-        new_offset = fh.tell()
     state.source_inode = stat.st_ino
     return records, new_offset
 

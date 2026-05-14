@@ -1,0 +1,51 @@
+{
+  "OS": {
+    "TF_CPP_MIN_LOG_LEVEL": "3",
+    "TF_FORCE_GPU_ALLOW_GROWTH": "true",
+    "CUDA_VISIBLE_DEVICES": "-1"
+  },
+  "USER_DIR": "/home/mnl/adids",
+  "MODEL_CODE": 4,
+  "FOUNDATION_MODEL_PATH": "/home/mnl/adids/data/models/live_demo_model.pickle",
+  "AUTO_CREATE_DEMO_MODEL": true,
+  "FeatureSchema": {
+    "MODE": "zeek",
+    "LABEL_COLUMN": "label",
+    "LABEL_FEATURES": [
+      "conn_state"
+    ],
+    "VECTOR_FEATURES": [
+      "duration",
+      "orig_bytes",
+      "resp_bytes",
+      "orig_pkts",
+      "resp_pkts",
+      "orig_ip_bytes",
+      "resp_ip_bytes",
+      "missed_bytes",
+      "local_orig",
+      "local_resp"
+    ]
+  },
+  "SIMULATION_SETTINGS_PATH": "/home/mnl/adids/src/main/Simulation/settings.json",
+  "FEATURE_EXPORT_INPUT_DIR_PATH": "/home/mnl/adids/data/logs/zeek/live/local_iot/current",
+  "FEATURE_EXPORT_OUTPUT_DIR_PATH": "/home/mnl/adids/data/csv/live/local_iot_demo",
+  "FEATURE_EXPORT_STATE_PATH": "/home/mnl/adids/data/live/state/local_iot_feature_export_state.json",
+  "FEATURE_EXPORT_LABEL": 0,
+  "FEATURE_EXPORT_OUTPUT_CHUNK_SIZE": 200,
+  "FEATURE_EXPORT_VALIDATE_OUTPUT": false,
+  "LIVE_CURSOR_STATE_PATH": "/home/mnl/adids/data/live/state/local_iot_runtime_state.json",
+  "INITIAL_POSITION": "end",
+  "POLL_INTERVAL_SECONDS": 1.0,
+  "MAX_POLLS": null,
+  "IDLE_LOG_EVERY_POLLS": 30,
+  "ALERT_THRESHOLD": 0.5,
+  "SOURCE_TYPE": "local_iot_demo",
+  "TARGET_PORTS": [
+    2223
+  ],
+  "TARGET_PROTOCOLS": [
+    "tcp"
+  ],
+  "TARGET_CONN_STATES": []
+}

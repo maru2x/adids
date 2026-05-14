@@ -1,0 +1,11 @@
+Port 2222
+Protocol 2
+PasswordAuthentication yes
+PermitRootLogin no
+PubkeyAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PrintMotd no
+Banner /etc/banner.txt
+Subsystem sftp internal-sftp
+AllowUsers iot

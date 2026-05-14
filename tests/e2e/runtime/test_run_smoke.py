@@ -70,9 +70,9 @@ def run_runtime_session(settings_path):
     if str(SRC_MAIN_DIR) not in sys.path:
         sys.path.insert(0, str(SRC_MAIN_DIR))
 
-    from model_factory import ModelFactory
-    from session_controller import SessionController
-    from settings_loader import SettingsLoader
+    from Simulation.model_factory import ModelFactory
+    from Simulation.session_controller import SessionController
+    from Simulation.settings_loader import SettingsLoader
 
     loader = SettingsLoader(path=str(settings_path))
     session = SessionController(loader)

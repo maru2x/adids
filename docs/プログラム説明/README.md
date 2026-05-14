@@ -30,15 +30,19 @@
 
 ### `src/main`
 
-- `src/main/settings.json`
-- `src/main/run.py`
-- `src/main/settings_loader.py`
-- `src/main/model_factory.py`
-- `src/main/trainer.py`
-- `src/main/evaluator.py`
-- `src/main/drift_detection.py`
-- `src/main/session_definer.py`
-- `src/main/session_controller.py`
+- `src/main/Simulation/settings.json`
+- `src/main/Simulation/run.py`
+- `src/main/Simulation/settings_loader.py`
+- `src/main/Simulation/model_factory.py`
+- `src/main/Simulation/trainer.py`
+- `src/main/Simulation/evaluator.py`
+- `src/main/Simulation/drift_detection.py`
+- `src/main/Simulation/session_definer.py`
+- `src/main/Simulation/session_controller.py`
+- `src/main/Live/settings.json`
+- `src/main/Live/run.py`
+- `src/main/Live/runtime.py`
+- `src/main/Live/settings_loader.py`
 
 ### `src/util/FeatureExtract`
 

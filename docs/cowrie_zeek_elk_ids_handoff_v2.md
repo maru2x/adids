@@ -42,7 +42,7 @@ repo 現状と食い違う記述があった場合は、次の docs / code を�
 - `Simulation`
   - 既存 pcap から生成した leaf CSV を `make run` へ渡して擬似リアルタイム実験を行う経路
 - `Live`
-  - 将来追加するリアルタイム観測・投入経路
+  - Zeek `conn.log` を増分 feature 化し、既存モデルで console alert を出す live PoC と、その拡張先のリアルタイム観測・投入経路
 
 したがって、以前この文書で `offline` と呼んでいたもののうち、`pcap -> csv -> make run` の実験導線は本書では `Simulation` と呼ぶ。
 
@@ -52,7 +52,7 @@ repo 現状と食い違う記述があった場合は、次の docs / code を�
 
 | 項目 | 現在の canonical な事実 |
 |---|---|
-| 実行本体 | `make run` は実質的に `Simulation` runtime であり、`Live` runtime は未実装 |
+| 実行本体 | `make run` は `Simulation` runtime、`make run-live` は no-retrain の `Live` PoC runtime |
 | 安定した前処理 | `make pcap-to-log` -> `make log-to-csv` -> `make run` |
 | 省略導線 | `make pcap-to-csv` は上記 2 段をまとめて実行する |
 | runtime 入力契約 | `DATASETS_DIR_PATH` は CSV ファイルだけが並ぶ leaf ディレクトリである必要がある |
@@ -301,8 +301,8 @@ Zeek JSON logs
 | Elasticsearch / Kibana | 最小導線は実装済み | ログ蓄積・検索・可視化 |
 | `log_to_csv_extractor.py` | 実装済み | Zeek log を Simulation runtime 互換 CSV に変換する |
 | generalized feature exporter | Zeek `conn.log` 向け最小版は実装済み | live / simulation 両方から feature を出す |
-| Simulation runtime (`src/main/`) | 実装済み | 推論・評価・再学習 |
-| Live runtime | 未実装 | 将来のリアルタイム処理系 |
+| Simulation runtime (`src/main/Simulation/`) | 実装済み | 推論・評価・再学習 |
+| Live runtime (`src/main/Live/`) | 実装済みの PoC あり | `feature-export live` を内部利用し、既存モデルで console alert を出す |
 
 ## 9. ログ形式
 
@@ -444,7 +444,7 @@ gw-live-2026-05-13
 1. `src/util/FeatureExtract/Zeek/settings.json` を編集する
 2. `make pcap-to-log`
 3. `make log-to-csv`
-4. `src/main/settings.json` の `DATASETS_DIR_PATH` を leaf CSV dir に合わせる
+4. `src/main/Simulation/settings.json` の `DATASETS_DIR_PATH` を leaf CSV dir に合わせる
 5. `make run`
 
 この流れは、repo 全体の基準線として維持する。

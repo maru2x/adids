@@ -8,7 +8,7 @@
 
 Legacyモードは、卒論研究の際に使用していた特徴量。ただ厳密な5-tuplesのフロー特徴量となっていないため、Zeekの導入により、より現実的な運用の環境に近づけたのがZeekモードである。
 
-ちなみに、LegacyモードとZeekモードで出力されるcsvファイルのカラム形式が異なるため、侵入検知プログラム `make run` などを実行する際は `src/main/settings.json` での設定が必要。
+ちなみに、LegacyモードとZeekモードで出力されるcsvファイルのカラム形式が異なるため、侵入検知プログラム `make run` を実行する際は `src/main/Simulation/settings.json` での設定が必要。
 
 ## Legacyモード
 
@@ -18,7 +18,7 @@ Legacyモードでは `src/util/FeatureExtract/Legacy/pcap_to_csv_extractor.py` 
 各種設定は `src/util/FeatureExtract/Legacy/settings.json` で行う。
 `TRAFFIC_DATA_PATH` に指定したpcapファイル、もしくはpcapファイルを含むディレクトリを入力として `pcap -> csv` を直接実行する。
 出力先は `data/csv/unproc/<init_time>-<input_name>/` 配下となる。
-ただし、Legacyモードの特徴量は現行の `zeek` スキーマとは列構成が異なるため、そのまま `Simulation` 本体へ入力する場合は `src/main/settings.json` 側の想定列と一致しているか確認が必要。
+ただし、Legacyモードの特徴量は現行の `zeek` スキーマとは列構成が異なるため、そのまま `Simulation` 本体へ入力する場合は `src/main/Simulation/settings.json` 側の想定列と一致しているか確認が必要。
 
 ## Zeekモード
 

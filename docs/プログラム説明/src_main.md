@@ -3,11 +3,12 @@
 ## 概要
 
 `src/main` は、この repository の runtime 本体である。
+現在は `Simulation/` と `Live/` に分かれている。
 
 処理の大きな流れは次の通り。
 
-1. `run.py` が起動する
-2. `SettingsLoader` が `settings.json` を読む
+1. `Simulation/run.py` または `Live/run.py` が起動する
+2. それぞれの `SettingsLoader` が対応する `settings.json` を読む
 3. `SessionController` が出力先や結果バッファを初期化する
 4. `ModelFactory` が基礎モデルを作る
 5. `NoRetrainSession` / `StaticSession` / `DynamicSession` のいずれかが CSV を順次読みながら推論・評価・再学習を行う
@@ -15,7 +16,7 @@
 
 ## ファイルごとの説明
 
-### `src/main/settings.json`
+### `src/main/Simulation/settings.json`
 
 runtime の挙動を決める設定ファイルである。
 
@@ -32,7 +33,7 @@ runtime の挙動を決める設定ファイルである。
 
 このファイルは、`SettingsLoader` と `SessionDefiner` 系クラスから広く参照される。
 
-### `run.py`
+### `src/main/Simulation/run.py`
 
 runtime の最小入口である。
 
@@ -44,7 +45,7 @@ runtime の最小入口である。
 
 このファイル自身は判断ロジックをほとんど持たず、「初期化の順序を固定するランチャー」という位置づけである。
 
-### `settings_loader.py`
+### `src/main/Simulation/settings_loader.py`
 
 `settings.json` を読み、実行時設定として扱いやすい形にするクラスである。
 

@@ -2,7 +2,7 @@
 
 ## 概要
 
-`make run` が読む CSV は、`src/main/settings.json` の `FeatureSchema` に従う。
+`make run` が読む CSV は、`src/main/Simulation/settings.json` の `FeatureSchema` に従う。
 
 現在の本体は次の2種類を扱う。
 
@@ -81,7 +81,7 @@ Zeek モードの `log-to-csv` が出した `conn.csv` 系を読むときに使�
 
 ### 必須列
 
-`src/main/settings.json` の既定値なら、最低限次が必要。
+`src/main/Simulation/settings.json` の既定値なら、最低限次が必要。
 
 - `daytime`
 - `label`
@@ -189,7 +189,12 @@ data/csv/zeek/conn/<batch_name>
 ```
 
 `feature-export` が出力する `conn.log` 系 leaf CSV も、同じ `zeek` スキーマとして runtime に渡せる前提で作る。
-つまり `make run` に渡すときは、やはり CSV ファイルだけが並ぶ leaf ディレクトリを指定する。
+つまり `make run` や `make run-live` に渡すときは、やはり CSV ファイルだけが並ぶ leaf ディレクトリを指定する。
+
+補足:
+
+- `make run-live` は `src/main/Live/settings.json` の `FeatureSchema` を使う
+- live exporter が付ける `label` は placeholder で、live PoC の alert 判定そのものには使わない
 
 ## 3. `legacy` スキーマ
 

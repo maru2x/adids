@@ -20,6 +20,19 @@ DEMO_DOCKER_COMPOSE := docker compose -p adids-demo -f "$(ROOT_DIR)/docker-compo
 KIBANA_COWRIE_LIVE_DASHBOARD_NDJSON := $(ROOT_DIR)/docs/kibana_saved_objects/cowrie_live_attack_monitoring.ndjson
 ES_COWRIE_LIVE_ENRICH_PIPELINE_JSON := $(ROOT_DIR)/filebeat/cowrie_live_enrich_pipeline.json
 ES_COWRIE_LIVE_ENRICH_PIPELINE_ID := zeek-cowrie-live-enrich-v1
+SECURITY_CHECK_SCRIPT := $(ROOT_DIR)/scripts/security_check.sh
+INIT_LOCAL_ENV_SCRIPT := $(ROOT_DIR)/scripts/init_local_env.sh
+
+.PHONY: init-local-env
+init-local-env:
+	@/bin/sh "$(INIT_LOCAL_ENV_SCRIPT)"
+
+.PHONY: ensure-env
+ensure-env:
+	@if [ ! -f "$(ROOT_DIR)/.env" ]; then \
+		echo "Missing $(ROOT_DIR)/.env. Run 'make init-local-env' and edit the generated secrets first." >&2; \
+		exit 1; \
+	fi
 
 .PHONY: venv
 venv:
@@ -40,19 +53,19 @@ install:
 bootstrap: venv install
 
 .PHONY: elk-up
-elk-up:
+elk-up: ensure-env
 	@docker compose up -d setup es01 kibana filebeat01
 
 .PHONY: elk-up-simulation
-elk-up-simulation:
+elk-up-simulation: ensure-env
 	@docker compose up -d setup es01 kibana filebeat01 filebeat-sim01
 
 .PHONY: elk-up-cowrie
-elk-up-cowrie:
+elk-up-cowrie: ensure-env
 	@docker compose up -d setup es01 kibana filebeat-cowrie01
 
 .PHONY: elk-up-cowrie-live
-elk-up-cowrie-live:
+elk-up-cowrie-live: ensure-env
 	@ES01_CID="$$(docker ps -a --filter label=com.docker.compose.project=$(DOCKER_COMPOSE_PROJECT_NAME) --filter label=com.docker.compose.service=es01 -q)"; \
 	if [ -n "$$ES01_CID" ]; then \
 		docker compose up -d --no-deps es01 kibana filebeat-cowrie01; \
@@ -71,7 +84,7 @@ elk-ps:
 	@docker compose ps
 
 .PHONY: es-put-cowrie-live-enrich-pipeline
-es-put-cowrie-live-enrich-pipeline:
+es-put-cowrie-live-enrich-pipeline: ensure-env
 	@if [ ! -f "$(ES_COWRIE_LIVE_ENRICH_PIPELINE_JSON)" ]; then \
 		echo "Pipeline file not found: $(ES_COWRIE_LIVE_ENRICH_PIPELINE_JSON)" >&2; \
 		exit 1; \
@@ -87,7 +100,7 @@ es-put-cowrie-live-enrich-pipeline:
 		--data-binary @"$(ES_COWRIE_LIVE_ENRICH_PIPELINE_JSON)"
 
 .PHONY: kibana-import-cowrie-live-dashboard
-kibana-import-cowrie-live-dashboard:
+kibana-import-cowrie-live-dashboard: ensure-env
 	@if [ ! -f "$(KIBANA_COWRIE_LIVE_DASHBOARD_NDJSON)" ]; then \
 		echo "Saved Objects file not found: $(KIBANA_COWRIE_LIVE_DASHBOARD_NDJSON)" >&2; \
 		exit 1; \
@@ -134,8 +147,12 @@ run-live:
 prepare-live-demo-model:
 	@cd "$(ROOT_DIR)/src/main" && "$(PYTHON)" -m Live.prepare_demo_model
 
+.PHONY: security-check
+security-check:
+	@/bin/sh "$(SECURITY_CHECK_SCRIPT)"
+
 .PHONY: unit-test
-unit-test:
+unit-test: security-check
 	@"$(PYTHON)" -m compileall -q "$(ROOT_DIR)/src"
 	@"$(PYTHON)" -m pytest "$(ROOT_DIR)/tests/unit" -q
 

@@ -38,7 +38,13 @@ data/logs/zeek/<dataset>/<batch>/conn.log
 
 ## 3. ELK を起動する
 
-`.env` に必要な環境変数が入っていることを確認して、次を実行する。
+先に local 専用 `.env` を用意する。まだ無ければ次を 1 回だけ実行する。
+
+```bash
+make init-local-env
+```
+
+その後、`.env` に必要な環境変数が入っていることを確認して、次を実行する。
 
 ```bash
 make elk-up
@@ -162,7 +168,13 @@ Kibana を起動した状態で、まず次を実行する。
 make kibana-import-cowrie-live-dashboard
 ```
 
-この target は `.env` の `ELASTIC_PASSWORD` と `KIBANA_PORT` を使い、repo 管理された `.ndjson` を Kibana API に `overwrite=true` で import する。
+この target は local の `.env` に入った `ELASTIC_PASSWORD` と `KIBANA_PORT` を使い、repo 管理された `.ndjson` を Kibana API に `overwrite=true` で import する。
+
+注意:
+
+- `.env` は Git 追跡しない
+- repo に置くのは `.env.example` だけにする
+- secret の扱いは [シークレット管理.md](./シークレット管理.md) に従う
 
 ### 手動 import
 

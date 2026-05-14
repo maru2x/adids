@@ -25,6 +25,7 @@ repo 側で実装済みなのは次である。
 - EC2 の公開 IP / DNS
 - Security Group
 - local PC から Kibana を見る時間帯と time range
+- secret をどのノードに置くか
 
 ## 2. EC2 側の前提
 
@@ -46,6 +47,12 @@ repo 側で実装済みなのは次である。
 - `5601/tcp`
 - `9200/tcp`
 - `5044/tcp`
+
+secret 配置の原則:
+
+- Cowrie センサ専用 EC2 には、不要な ELK 用 `.env` を置かない
+- `docker-compose.cowrie.yml` だけで足りるなら、`ELASTIC_PASSWORD` や `ENCRYPTION_KEY` は local PC 側だけに置く
+- local ELK 用 secret の扱いは [シークレット管理.md](./シークレット管理.md) を参照
 
 ## 3. Security Group
 

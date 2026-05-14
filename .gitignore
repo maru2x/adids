@@ -1,6 +1,9 @@
 data/
 exp/
 other/
+.env
+.env.*
+!.env.example
 *.pcap
 *.csv
 *.pickle
@@ -10,6 +13,8 @@ other/
 *.pyc
 __pycache__/
 .venv/
+tests/manual/environment_variables.json
+tests/manual/local_artifacts/
 cowrie/var/log/cowrie/*
 !cowrie/var/log/cowrie/.gitkeep
 cowrie/var/lib/cowrie/*
